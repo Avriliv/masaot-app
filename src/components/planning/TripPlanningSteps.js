@@ -6,24 +6,24 @@ import {
     StepLabel,
     Button,
     Typography,
-    Grid,
 } from '@mui/material';
+import BasicInfo from './BasicInfo';
 import MapPlanning from './MapPlanning';
-import TripDetails from './TripDetails';
 import TripSummary from './TripSummary';
+import { useTrip } from '../../context/TripContext';
 
 const steps = [
     {
         label: 'פרטי הטיול',
         description: 'הגדרת פרטי הטיול הבסיסיים',
-        component: TripDetails,
-        validation: (data) => data.details && Object.keys(data.details).length > 0
+        component: BasicInfo,
+        validation: (tripData) => tripData.basicDetails && tripData.basicDetails.tripName
     },
     {
         label: 'תכנון מסלול',
         description: 'תכנון מסלול הטיול על המפה',
         component: MapPlanning,
-        validation: (data) => data.route && data.route.points && data.route.points.length >= 2
+        validation: (tripData) => tripData.mapDetails && tripData.mapDetails.markers && tripData.mapDetails.markers.length >= 2
     },
     {
         label: 'סיכום',
@@ -35,7 +35,7 @@ const steps = [
 
 const TripPlanningSteps = () => {
     const [activeStep, setActiveStep] = useState(0);
-    const [tripData, setTripData] = useState({});
+    const { tripData } = useTrip();
 
     const handleNext = () => {
         if (activeStep < steps.length - 1) {
@@ -49,13 +49,6 @@ const TripPlanningSteps = () => {
         }
     };
 
-    const handleStepDataUpdate = (data) => {
-        setTripData((prevData) => ({
-            ...prevData,
-            ...data
-        }));
-    };
-
     const CurrentStepComponent = steps[activeStep].component;
     const isLastStep = activeStep === steps.length - 1;
     const canProceed = steps[activeStep].validation(tripData);
@@ -63,7 +56,7 @@ const TripPlanningSteps = () => {
     return (
         <Box sx={{ width: '100%', p: 2 }}>
             <Stepper activeStep={activeStep} alternativeLabel sx={{ mb: 4 }}>
-                {steps.slice(0, 3).map((step, index) => (
+                {steps.map((step) => (
                     <Step key={step.label}>
                         <StepLabel>
                             <Typography>{step.label}</Typography>
@@ -81,24 +74,11 @@ const TripPlanningSteps = () => {
                 </Typography>
             </Box>
 
-            <CurrentStepComponent data={tripData} onUpdate={handleStepDataUpdate} />
-
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4 }}>
-                <Button
-                    variant="outlined"
-                    onClick={handleBack}
-                    disabled={activeStep === 0}
-                >
-                    חזור
-                </Button>
-                <Button
-                    variant="contained"
-                    onClick={handleNext}
-                    disabled={!canProceed}
-                >
-                    {isLastStep ? 'סיים' : 'המשך'}
-                </Button>
-            </Box>
+            <CurrentStepComponent 
+                onSubmit={handleNext} 
+                onBack={handleBack}
+                initialData={tripData} 
+            />
         </Box>
     );
 };

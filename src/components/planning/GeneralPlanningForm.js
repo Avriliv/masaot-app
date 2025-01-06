@@ -16,11 +16,10 @@ const GeneralPlanningForm = ({ onSave }) => {
     const [tripName, setTripName] = useState('');
     const [startDate, setStartDate] = useState(null);
     const [endDate, setEndDate] = useState(null);
-    const [participants, setParticipants] = useState(1);
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        onSave({ tripName, startDate, endDate, participants });
+        onSave({ tripName, startDate, endDate });
     };
 
     return (
@@ -54,17 +53,6 @@ const GeneralPlanningForm = ({ onSave }) => {
                                 value={endDate}
                                 onChange={setEndDate}
                                 renderInput={(params) => <TextField {...params} fullWidth required />}
-                            />
-                        </Grid>
-                        <Grid item xs={12}>
-                            <TextField
-                                fullWidth
-                                type="number"
-                                label="מספר משתתפים"
-                                value={participants}
-                                onChange={(e) => setParticipants(e.target.value)}
-                                required
-                                inputProps={{ min: 1 }}
                             />
                         </Grid>
                         <Grid item xs={12}>

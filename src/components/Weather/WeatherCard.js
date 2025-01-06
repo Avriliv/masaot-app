@@ -112,6 +112,9 @@ const WeatherCard = ({ lat, lon, showSearch = false }) => {
                 <Typography variant="h6" sx={{ color: 'text.secondary' }}>
                   {currentWeather.description}
                 </Typography>
+                <Typography variant="body1" sx={{ color: currentWeather.rain_chance > 30 ? 'error.main' : 'text.secondary' }}>
+                  סיכוי לגשם: {currentWeather.rain_chance}%
+                </Typography>
               </Box>
             </Box>
             <Box sx={{ 
@@ -142,6 +145,15 @@ const WeatherCard = ({ lat, lon, showSearch = false }) => {
                 </Typography>
                 <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                   {currentWeather.wind_direction}
+                </Typography>
+              </Box>
+              <Box sx={{ textAlign: 'center' }}>
+                <SunIcon sx={{ color: 'warning.main', mb: 1 }} />
+                <Typography variant="body1" sx={{ color: 'text.secondary' }}>
+                  UV אינדקס
+                </Typography>
+                <Typography variant="h6" sx={{ fontWeight: 'medium' }}>
+                  {currentWeather.uv_index}
                 </Typography>
               </Box>
             </Box>
@@ -206,6 +218,20 @@ const WeatherCard = ({ lat, lon, showSearch = false }) => {
                       {day.temp.min}°
                     </Typography>
                   </Box>
+                  <Typography variant="body2" sx={{ 
+                    color: day.rain_probability > 30 ? 'error.main' : 'text.secondary',
+                    mt: 1
+                  }}>
+                    סיכוי לגשם: {day.rain_probability}%
+                  </Typography>
+                  <Box sx={{ mt: 1, display: 'flex', justifyContent: 'space-between', borderTop: 1, borderColor: 'divider', pt: 1 }}>
+                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                      לחות: {day.avg_humidity}%
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                      רוח: {day.avg_wind_speed} קמ"ש
+                    </Typography>
+                  </Box>
                 </Paper>
               ))}
             </Box>
@@ -222,18 +248,31 @@ const WeatherCard = ({ lat, lon, showSearch = false }) => {
                   sx={{ 
                     width: '100%', 
                     mb: 1,
-                    borderRadius: 2,
-                    '& .MuiAlert-icon': {
-                      fontSize: '2rem'
+                    '& .MuiAlert-message': {
+                      width: '100%'
                     }
                   }}
                 >
-                  <AlertTitle sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}>
-                    {alert.title}
-                  </AlertTitle>
-                  <Typography variant="body1">
+                  <AlertTitle sx={{ fontWeight: 'bold' }}>{alert.title}</AlertTitle>
+                  <Typography variant="body2" gutterBottom>
                     {alert.description}
                   </Typography>
+                  <Box sx={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    mt: 1,
+                    borderTop: '1px solid',
+                    borderColor: 'divider',
+                    pt: 1
+                  }}>
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                      אזור: {alert.area}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                      {new Date(alert.date).toLocaleDateString('he-IL')}
+                    </Typography>
+                  </Box>
                 </Alert>
               </ListItem>
             ))}

@@ -1,356 +1,481 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
-    Grid,
+    Box,
     Typography,
-    Container,
-    Button,
-    Box
+    TextField,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem,
+    Grid,
+    Paper,
+    Autocomplete,
+    CircularProgress
 } from '@mui/material';
-import { makeStyles } from '@mui/styles';
+import debounce from 'lodash/debounce';
 
-const useStyles = makeStyles((theme) => ({
-    formContainer: {
-        width: '100%',
-        maxWidth: '850px',
-        margin: '20px auto',
-        padding: theme.spacing(3),
-        display: 'flex',
-        flexDirection: 'column',
-        gap: theme.spacing(2),
-        direction: 'rtl',
-        backgroundColor: '#fff',
-        borderRadius: theme.shape.borderRadius,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
-    },
-    formLabel: {
-        display: 'block',
-        marginBottom: theme.spacing(1),
-        fontSize: '0.95rem',
-        fontWeight: 500,
-        color: theme.palette.text.primary,
-        textAlign: 'center',
-        width: '100%'
-    },
-    formField: {
-        marginBottom: theme.spacing(2),
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center'
-    },
-    input: {
-        width: '100%',
-        padding: theme.spacing(1.25),
-        borderRadius: theme.shape.borderRadius,
-        border: `1px solid ${theme.palette.divider}`,
-        fontSize: '0.95rem',
-        fontFamily: 'Rubik, Arial, sans-serif',
-        direction: 'rtl',
-        textAlign: 'right',
-        '&::placeholder': {
-            textAlign: 'right'
-        },
-        '&:focus': {
-            outline: 'none',
-            borderColor: theme.palette.primary.main,
-            boxShadow: `0 0 0 2px ${theme.palette.primary.light}20`
-        }
-    },
-    select: {
-        width: '100%',
-        padding: theme.spacing(1.25),
-        borderRadius: theme.shape.borderRadius,
-        border: `1px solid ${theme.palette.divider}`,
-        fontSize: '0.95rem',
-        fontFamily: 'Rubik, Arial, sans-serif',
-        direction: 'rtl',
-        textAlign: 'right',
-        '& option': {
-            direction: 'rtl',
-            textAlign: 'right'
-        },
-        '&:focus': {
-            outline: 'none',
-            borderColor: theme.palette.primary.main,
-            boxShadow: `0 0 0 2px ${theme.palette.primary.light}20`
-        }
-    },
-    textarea: {
-        width: '100%',
-        padding: theme.spacing(1.25),
-        borderRadius: theme.shape.borderRadius,
-        border: `1px solid ${theme.palette.divider}`,
-        fontSize: '0.95rem',
-        fontFamily: 'Rubik, Arial, sans-serif',
-        direction: 'rtl',
-        textAlign: 'right',
-        minHeight: '100px',
-        resize: 'vertical',
-        '&::placeholder': {
-            textAlign: 'right'
-        },
-        '&:focus': {
-            outline: 'none',
-            borderColor: theme.palette.primary.main,
-            boxShadow: `0 0 0 2px ${theme.palette.primary.light}20`
-        }
-    },
-    pageTitle: {
-        fontSize: '1.5rem',
-        fontWeight: 600,
-        color: '#1976d2',
-        marginBottom: '8px',
-        textAlign: 'center',
-        fontFamily: 'Rubik, Arial, sans-serif'
-    },
-    pageSubtitle: {
-        fontSize: '1rem',
-        color: '#666',
-        marginBottom: '24px',
-        textAlign: 'center',
-        fontFamily: 'Rubik, Arial, sans-serif'
-    },
-    requiredStaffNote: {
-        fontSize: '0.9rem',
-        color: theme.palette.info.main,
-        marginTop: theme.spacing(1),
-        padding: theme.spacing(1),
-        backgroundColor: `${theme.palette.info.light}20`,
-        borderRadius: theme.shape.borderRadius,
-        border: `1px solid ${theme.palette.info.light}`,
-        direction: 'rtl',
-        textAlign: 'right',
-        whiteSpace: 'pre-line',
-        width: '100%'
-    },
-    option: {
-        direction: 'rtl',
-        textAlign: 'right'
-    },
-    actionButton: {
-        marginTop: theme.spacing(3),
-        alignSelf: 'flex-end',
-        fontFamily: 'Rubik, Arial, sans-serif'
+const gradeOptions = [
+    'כיתה א׳',
+    'כיתה ב׳',
+    'כיתה ג׳',
+    'כיתה ד׳',
+    'כיתה ה׳',
+    'כיתה ו׳',
+    'כיתה ז׳',
+    'כיתה ח׳',
+    'כיתה ט׳',
+    'כיתה י׳',
+    'כיתה י״א',
+    'כיתה י״ב',
+    'אחר'
+];
+
+const organizationTypes = [
+    'בית ספר',
+    'תנועת נוער',
+    'מכינה קדם צבאית',
+    'צבא',
+    'מועצה מקומית',
+    'אחר'
+];
+
+// Cache object for storing search results
+const searchCache = new Map();
+
+const searchLocations = async (searchText) => {
+    if (!searchText || searchText.length < 2) return [];
+
+    // אם יש תוצאות במטמון, נחזיר אותן
+    const cacheKey = searchText.toLowerCase();
+    if (searchCache.has(cacheKey)) {
+        return searchCache.get(cacheKey);
     }
-}));
 
-// פונקציה לחישוב צוות נדרש
-const calculateRequiredStaff = (numStudents) => {
-    if (!numStudents || numStudents <= 0) return null;
+    try {
+        // חיפוש מקומות
+        const viewbox = '34.2654333839,29.5013261988,35.8363969256,33.2774264593'; // גבולות ישראל
+        const response = await fetch(
+            `https://nominatim.openstreetmap.org/search?` + 
+            new URLSearchParams({
+                q: searchText,
+                format: 'json',
+                limit: '15',
+                countrycodes: 'il',
+                'accept-language': 'he',
+                addressdetails: '1',
+                viewbox: viewbox,
+                bounded: '1'
+            })
+        );
 
-    const requiredStaff = {
-        medics: Math.ceil(numStudents / 50), // חובש לכל 50 תלמידים
-        security: Math.ceil(numStudents / 100) // מאבטח חמוש לכל 100 תלמידים
-    };
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
 
-    let note = `נדרשים לטיול זה: ${requiredStaff.security} מאבטחים חמושים, ${requiredStaff.medics} חובשים`;
-    if (numStudents > 150) {
-        note += '\nנדרש מוקד טבע';
+        const data = await response.json();
+        
+        const results = data.map(item => {
+            // מיצוי שם קצר ומדויק יותר
+            let label = item.name || item.display_name.split(',')[0];
+            
+            // הוספת סוג המקום אם קיים
+            if (item.type) {
+                const typeMap = {
+                    'national_park': 'פארק לאומי',
+                    'nature_reserve': 'שמורת טבע',
+                    'protected_area': 'שטח מוגן',
+                    'peak': 'פסגה',
+                    'hill': 'גבעה',
+                    'mountain': 'הר',
+                    'valley': 'עמק',
+                    'water': 'מקור מים',
+                    'stream': 'נחל',
+                    'spring': 'מעיין',
+                    'cave': 'מערה',
+                    'viewpoint': 'תצפית',
+                    'archaeological_site': 'אתר ארכיאולוגי',
+                    'ruins': 'חורבות',
+                    'camp_site': 'אתר מחנאות',
+                    'hiking_trail': 'מסלול הליכה'
+                };
+                
+                const hebrewType = typeMap[item.type] || item.type;
+                label = `${label} (${hebrewType})`;
+            }
+
+            // בניית כתובת מקוצרת יותר
+            const addressParts = [];
+            if (item.address) {
+                if (item.address.city) addressParts.push(item.address.city);
+                if (item.address.town) addressParts.push(item.address.town);
+                if (item.address.village) addressParts.push(item.address.village);
+                if (item.address.suburb) addressParts.push(item.address.suburb);
+                if (item.address.region) addressParts.push(item.address.region);
+            }
+
+            return {
+                label: label,
+                fullAddress: addressParts.join(', '),
+                value: item.place_id,
+                coordinates: [item.lat, item.lon],
+                type: item.type,
+                category: item.class,
+                importance: item.importance
+            };
+        });
+
+        // מיון לפי חשיבות ורלוונטיות
+        results.sort((a, b) => b.importance - a.importance);
+
+        // שמירת התוצאות במטמון
+        searchCache.set(cacheKey, results);
+        
+        return results;
+    } catch (error) {
+        console.error('Error fetching locations:', error);
+        return [];
     }
-    
-    return note;
 };
 
-const BasicInfo = ({
-    data,
-    onUpdate,
-    onNext
-}) => {
-    const classes = useStyles();
+const BasicInfo = ({ onSubmit }) => {
     const [formData, setFormData] = useState({
-        tripName: data?.tripName || '',
-        description: data?.description || '',
-        startDate: data?.startDate || '',
-        endDate: data?.endDate || '',
-        numDays: data?.numDays || '',
-        numStudents: data?.numStudents || '',
-        numStaff: data?.numStaff || '',
-        organizationType: data?.organizationType || '',
-        ageGroup: data?.ageGroup || ''
+        tripName: '',
+        description: '',
+        startDate: '',
+        endDate: '',
+        numDays: '',
+        numParticipants: '',
+        numChaperones: '',
+        gradeFrom: '',
+        gradeTo: '',
+        organizationType: '',
+        dailyLocations: []
     });
 
-    const [requiredStaffNote, setRequiredStaffNote] = useState('');
+    const [locations, setLocations] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
 
-    const organizationTypes = [
-        { value: 'school', label: 'בית ספר' },
-        { value: 'youth_movement', label: 'תנועת נוער' },
-        { value: 'informal_education', label: 'חינוך בלתי פורמאלי' },
-        { value: 'other', label: 'אחר' }
-    ];
+    const debouncedSearch = useCallback(
+        debounce(async (searchText, callback) => {
+            if (!searchText || searchText.length < 2) return;
+            
+            setLoading(true);
+            setError(null);
+            
+            try {
+                const results = await searchLocations(searchText);
+                callback(results);
+            } catch (err) {
+                setError('שגיאה בחיפוש מיקומים');
+            } finally {
+                setLoading(false);
+            }
+        }, 300),
+        []
+    );
 
-    const ageGroups = [
-        { value: 'elementary', label: 'יסודי' },
-        { value: 'middle_school', label: 'חטיבת ביניים' },
-        { value: 'high_school', label: 'חטיבה עליונה' },
-        { value: 'other', label: 'אחר' }
-    ];
+    useEffect(() => {
+        if (formData.numDays > 0) {
+            setFormData(prev => ({
+                ...prev,
+                dailyLocations: Array(parseInt(formData.numDays)).fill().map(() => ({
+                    start: null,
+                    end: null
+                }))
+            }));
+        }
+    }, [formData.numDays]);
 
     const handleInputChange = (field) => (event) => {
         const value = event.target.value;
-        setFormData(prev => ({ ...prev, [field]: value }));
-
-        // עדכון הערת צוות נדרש כשמשנים את מספר החניכים
-        if (field === 'numStudents') {
-            const note = calculateRequiredStaff(Number(value));
-            setRequiredStaffNote(note);
-        }
+        setFormData(prev => {
+            const newData = { ...prev, [field]: value };
+            
+            if (field === 'startDate' || field === 'endDate') {
+                if (newData.startDate && newData.endDate) {
+                    const start = new Date(newData.startDate);
+                    const end = new Date(newData.endDate);
+                    const diffTime = Math.abs(end - start);
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+                    newData.numDays = diffDays;
+                }
+            }
+            
+            return newData;
+        });
     };
 
-    const handleSubmit = () => {
-        onUpdate(formData);
-        if (onNext) onNext();
+    const handleLocationChange = (dayIndex, type) => (event, newValue) => {
+        setFormData(prev => {
+            const newLocations = [...prev.dailyLocations];
+            newLocations[dayIndex] = {
+                ...newLocations[dayIndex],
+                [type]: newValue
+            };
+            return {
+                ...prev,
+                dailyLocations: newLocations
+            };
+        });
     };
 
     return (
-        <Box sx={(theme) => ({ 
-            width: '100%',
-            minHeight: '100vh',
-            padding: theme.spacing(2),
-            backgroundColor: '#fafafa'
-        })}>
-            <div className={classes.formContainer}>
-                <Typography className={classes.pageTitle}>
+        <Box sx={{ maxWidth: 800, mx: 'auto', mt: 4 }}>
+            <Paper sx={{ p: 3 }}>
+                <Typography variant="h5" component="h2" gutterBottom align="center">
                     פרטי הטיול
                 </Typography>
-                <Typography className={classes.pageSubtitle}>
-                    מלא את הפרטים הבסיסיים של הטיול
-                </Typography>
 
-                <Grid container spacing={3}>
+                <Grid container spacing={2}>
                     <Grid item xs={12}>
-                        <div className={classes.formField}>
-                            <label className={classes.formLabel}>שם הטיול</label>
-                            <input
-                                className={classes.input}
-                                value={formData.tripName}
-                                onChange={handleInputChange('tripName')}
-                                placeholder="הכנס את שם הטיול"
-                            />
-                        </div>
+                        <TextField
+                            required
+                            fullWidth
+                            label="שם הטיול"
+                            name="tripName"
+                            value={formData.tripName}
+                            onChange={handleInputChange('tripName')}
+                            placeholder="הכנס שם לטיול"
+                            size="small"
+                        />
                     </Grid>
+
                     <Grid item xs={12}>
-                        <div className={classes.formField}>
-                            <label className={classes.formLabel}>תיאור הטיול</label>
-                            <textarea
-                                className={classes.textarea}
-                                value={formData.description}
-                                onChange={handleInputChange('description')}
-                                placeholder="הכנס תיאור לטיול"
-                                rows={4}
-                            />
-                        </div>
+                        <TextField
+                            fullWidth
+                            label="תיאור הטיול"
+                            name="description"
+                            value={formData.description}
+                            onChange={handleInputChange('description')}
+                            multiline
+                            rows={4}
+                            size="small"
+                        />
                     </Grid>
 
-                    <Grid item xs={12} md={6}>
-                        <div className={classes.formField}>
-                            <label className={classes.formLabel}>תאריך התחלה</label>
-                            <input
-                                className={classes.input}
-                                type="date"
-                                value={formData.startDate}
-                                onChange={handleInputChange('startDate')}
-                            />
-                        </div>
-                    </Grid>
-                    <Grid item xs={12} md={6}>
-                        <div className={classes.formField}>
-                            <label className={classes.formLabel}>תאריך סיום</label>
-                            <input
-                                className={classes.input}
-                                type="date"
-                                value={formData.endDate}
-                                onChange={handleInputChange('endDate')}
-                            />
-                        </div>
+                    <Grid item xs={12} sm={6}>
+                        <TextField
+                            required
+                            fullWidth
+                            label="תאריך התחלה"
+                            name="startDate"
+                            type="date"
+                            value={formData.startDate}
+                            onChange={handleInputChange('startDate')}
+                            InputLabelProps={{ shrink: true }}
+                            size="small"
+                        />
                     </Grid>
 
-                    <Grid item xs={12} md={4}>
-                        <div className={classes.formField}>
-                            <label className={classes.formLabel}>מספר ימים</label>
-                            <input
-                                className={classes.input}
-                                type="number"
-                                value={formData.numDays}
-                                onChange={handleInputChange('numDays')}
-                                min="1"
-                            />
-                        </div>
+                    <Grid item xs={12} sm={6}>
+                        <TextField
+                            required
+                            fullWidth
+                            label="תאריך סיום"
+                            name="endDate"
+                            type="date"
+                            value={formData.endDate}
+                            onChange={handleInputChange('endDate')}
+                            InputLabelProps={{ shrink: true }}
+                            size="small"
+                        />
                     </Grid>
-                    <Grid item xs={12} md={4}>
-                        <div className={classes.formField}>
-                            <label className={classes.formLabel}>מספר חניכים</label>
-                            <input
-                                className={classes.input}
-                                type="number"
-                                value={formData.numStudents}
-                                onChange={handleInputChange('numStudents')}
-                                min="0"
-                            />
-                            {requiredStaffNote && (
-                                <Typography className={classes.requiredStaffNote}>
-                                    {requiredStaffNote}
+
+                    <Grid item xs={12}>
+                        <TextField
+                            required
+                            fullWidth
+                            label="מספר ימים"
+                            name="numDays"
+                            type="number"
+                            value={formData.numDays}
+                            onChange={handleInputChange('numDays')}
+                            InputProps={{ inputProps: { min: 1 } }}
+                            size="small"
+                        />
+                    </Grid>
+
+                    {formData.numDays > 0 && formData.dailyLocations.map((dayLocation, index) => (
+                        <Grid item xs={12} key={index} container spacing={2}>
+                            <Grid item xs={12}>
+                                <Typography variant="subtitle1" gutterBottom>
+                                    יום {index + 1}
                                 </Typography>
-                            )}
-                        </div>
-                    </Grid>
-                    <Grid item xs={12} md={4}>
-                        <div className={classes.formField}>
-                            <label className={classes.formLabel}>מספר אנשי צוות</label>
-                            <input
-                                className={classes.input}
-                                type="number"
-                                value={formData.numStaff}
-                                onChange={handleInputChange('numStaff')}
-                                min="0"
-                            />
-                        </div>
+                            </Grid>
+                            <Grid item xs={12} sm={6}>
+                                <Autocomplete
+                                    fullWidth
+                                    options={locations}
+                                    value={dayLocation.start}
+                                    onChange={handleLocationChange(index, 'start')}
+                                    onInputChange={(event, value) => {
+                                        debouncedSearch(value, (results) => {
+                                            setLocations(results);
+                                        });
+                                    }}
+                                    loading={loading}
+                                    loadingText="טוען..."
+                                    noOptionsText={error || "לא נמצאו תוצאות"}
+                                    getOptionLabel={(option) => option.label || ''}
+                                    renderInput={(params) => (
+                                        <TextField
+                                            {...params}
+                                            label={`מיקום התחלה - יום ${index + 1}`}
+                                            size="small"
+                                            InputProps={{
+                                                ...params.InputProps,
+                                                endAdornment: (
+                                                    <>
+                                                        {loading ? <CircularProgress color="inherit" size={20} /> : null}
+                                                        {params.InputProps.endAdornment}
+                                                    </>
+                                                ),
+                                            }}
+                                        />
+                                    )}
+                                    renderOption={(props, option) => (
+                                        <li {...props}>
+                                            <Box>
+                                                <Typography>{option.label}</Typography>
+                                                {option.fullAddress && (
+                                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                                                        {option.fullAddress}
+                                                    </Typography>
+                                                )}
+                                            </Box>
+                                        </li>
+                                    )}
+                                />
+                            </Grid>
+                            <Grid item xs={12} sm={6}>
+                                <Autocomplete
+                                    fullWidth
+                                    options={locations}
+                                    value={dayLocation.end}
+                                    onChange={handleLocationChange(index, 'end')}
+                                    onInputChange={(event, value) => {
+                                        debouncedSearch(value, (results) => {
+                                            setLocations(results);
+                                        });
+                                    }}
+                                    loading={loading}
+                                    loadingText="טוען..."
+                                    noOptionsText={error || "לא נמצאו תוצאות"}
+                                    getOptionLabel={(option) => option.label || ''}
+                                    renderInput={(params) => (
+                                        <TextField
+                                            {...params}
+                                            label={`מיקום סיום - יום ${index + 1}`}
+                                            size="small"
+                                            InputProps={{
+                                                ...params.InputProps,
+                                                endAdornment: (
+                                                    <>
+                                                        {loading ? <CircularProgress color="inherit" size={20} /> : null}
+                                                        {params.InputProps.endAdornment}
+                                                    </>
+                                                ),
+                                            }}
+                                        />
+                                    )}
+                                    renderOption={(props, option) => (
+                                        <li {...props}>
+                                            <Box>
+                                                <Typography>{option.label}</Typography>
+                                                {option.fullAddress && (
+                                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                                                        {option.fullAddress}
+                                                    </Typography>
+                                                )}
+                                            </Box>
+                                        </li>
+                                    )}
+                                />
+                            </Grid>
+                        </Grid>
+                    ))}
+
+                    <Grid item xs={12} sm={6}>
+                        <TextField
+                            required
+                            fullWidth
+                            label="מספר חניכים"
+                            name="numParticipants"
+                            type="number"
+                            value={formData.numParticipants}
+                            onChange={handleInputChange('numParticipants')}
+                            InputProps={{ inputProps: { min: 0 } }}
+                            size="small"
+                        />
                     </Grid>
 
-                    <Grid item xs={12} md={6}>
-                        <div className={classes.formField}>
-                            <label className={classes.formLabel}>סוג ארגון</label>
-                            <select
-                                className={classes.select}
+                    <Grid item xs={12} sm={6}>
+                        <TextField
+                            required
+                            fullWidth
+                            label="מספר אנשי צוות"
+                            name="numChaperones"
+                            type="number"
+                            value={formData.numChaperones}
+                            onChange={handleInputChange('numChaperones')}
+                            InputProps={{ inputProps: { min: 0 } }}
+                            size="small"
+                        />
+                    </Grid>
+
+                    <Grid item xs={12} sm={6}>
+                        <FormControl fullWidth size="small">
+                            <InputLabel>מכיתה</InputLabel>
+                            <Select
+                                value={formData.gradeFrom}
+                                onChange={handleInputChange('gradeFrom')}
+                                label="מכיתה"
+                            >
+                                {gradeOptions.map((grade) => (
+                                    <MenuItem key={grade} value={grade}>
+                                        {grade}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                    </Grid>
+
+                    <Grid item xs={12} sm={6}>
+                        <FormControl fullWidth size="small">
+                            <InputLabel>עד כיתה</InputLabel>
+                            <Select
+                                value={formData.gradeTo}
+                                onChange={handleInputChange('gradeTo')}
+                                label="עד כיתה"
+                            >
+                                {gradeOptions.map((grade) => (
+                                    <MenuItem key={grade} value={grade}>
+                                        {grade}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                    </Grid>
+
+                    <Grid item xs={12}>
+                        <FormControl fullWidth size="small">
+                            <InputLabel>סוג ארגון</InputLabel>
+                            <Select
                                 value={formData.organizationType}
                                 onChange={handleInputChange('organizationType')}
+                                label="סוג ארגון"
                             >
-                                <option value="">בחר סוג ארגון</option>
-                                {organizationTypes.map((option) => (
-                                    <option key={option.value} value={option.value} className={classes.option}>
-                                        {option.label}
-                                    </option>
+                                {organizationTypes.map((type) => (
+                                    <MenuItem key={type} value={type}>
+                                        {type}
+                                    </MenuItem>
                                 ))}
-                            </select>
-                        </div>
-                    </Grid>
-                    <Grid item xs={12} md={6}>
-                        <div className={classes.formField}>
-                            <label className={classes.formLabel}>קבוצת גיל</label>
-                            <select
-                                className={classes.select}
-                                value={formData.ageGroup}
-                                onChange={handleInputChange('ageGroup')}
-                            >
-                                <option value="">בחר קבוצת גיל</option>
-                                {ageGroups.map((option) => (
-                                    <option key={option.value} value={option.value} className={classes.option}>
-                                        {option.label}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
+                            </Select>
+                        </FormControl>
                     </Grid>
                 </Grid>
-
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
-                    <Button
-                        variant="contained"
-                        color="primary"
-                        onClick={handleSubmit}
-                    >
-                        המשך
-                    </Button>
-                </Box>
-            </div>
+            </Paper>
         </Box>
     );
 };

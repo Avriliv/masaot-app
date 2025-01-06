@@ -47,22 +47,29 @@ const calculateDistance = (point1, point2) => {
 // פונקציה לקבלת מסלול בין שתי נקודות
 const getHikingRoute = async (point1, point2) => {
   try {
+    // שימוש ב-Israel Hiking API לקבלת מסלול בשבילים מסומנים
     const response = await axios.get(
-      `https://routing.openstreetmap.de/routed-foot/route/v1/hiking/` +
-      `${point1.lng},${point1.lat};${point2.lng},${point2.lat}` +
-      `?overview=full&geometries=geojson`
+      `https://israelhiking.osm.org.il/api/v2/routing/` +
+      `${point1.lng},${point1.lat}/` +
+      `${point2.lng},${point2.lat}`,
+      {
+        params: {
+          profile: 'hike', // שימוש בפרופיל הליכה שמעדיף שבילים מסומנים
+          language: 'he'
+        }
+      }
     );
     
-    if (response.data && response.data.routes && response.data.routes[0].geometry) {
-      return response.data.routes[0].geometry.coordinates.map(coord => ({
+    if (response.data && response.data.coordinates) {
+      return response.data.coordinates.map(coord => ({
         lat: coord[1],
         lng: coord[0]
       }));
     }
-    return null;
+    return [];
   } catch (error) {
-    console.error('Error fetching hiking route:', error);
-    return null;
+    console.error('Error getting hiking route:', error);
+    return [];
   }
 };
 
@@ -78,7 +85,7 @@ const MapEvents = ({ onMapClick }) => {
 };
 
 const HikingMap = ({ onPointSelect, selectedPoints = [], onPointsUpdate }) => {
-  const [routePath, setRoutePath] = useState([]);
+  const [routePaths, setRoutePaths] = useState([]);
   // מרכז המפה בברירת מחדל (מרכז ישראל)
   const defaultCenter = [31.7683, 35.2137];
   const [totalDistance, setTotalDistance] = useState(0);
@@ -106,26 +113,49 @@ const HikingMap = ({ onPointSelect, selectedPoints = [], onPointsUpdate }) => {
     }
   }, [selectedPoints, mapRef]);
 
-  // עדכון המסלול כשמשתנות הנקודות
+  // עדכון המסלולים כאשר משתנות הנקודות
   useEffect(() => {
-    const updateRoute = async () => {
-      if (selectedPoints.length < 2) {
-        setRoutePath([]);
-        return;
-      }
+    const updateRoutes = async () => {
+      if (selectedPoints.length >= 2) {
+        try {
+          const paths = [];
+          for (let i = 0; i < selectedPoints.length - 1; i++) {
+            const start = selectedPoints[i];
+            const end = selectedPoints[i + 1];
+            
+            const response = await axios.get(
+              `https://israelhiking.osm.org.il/api/v2/routing/${start.lng},${start.lat}/${end.lng},${end.lat}`,
+              {
+                params: {
+                  profile: 'hike',
+                  language: 'he'
+                }
+              }
+            );
 
-      let newPath = [];
-      for (let i = 1; i < selectedPoints.length; i++) {
-        const segmentPath = await getHikingRoute(selectedPoints[i-1], selectedPoints[i]);
-        if (segmentPath) {
-          newPath = [...newPath, ...segmentPath];
+            if (response.data && response.data.coordinates) {
+              paths.push(response.data.coordinates.map(coord => [coord[1], coord[0]]));
+            }
+          }
+          setRoutePaths(paths);
+        } catch (error) {
+          console.error('Error fetching routes:', error);
+          // אם יש שגיאה בקבלת המסלול המומלץ, נציג קו ישר בין הנקודות
+          const straightPaths = [];
+          for (let i = 0; i < selectedPoints.length - 1; i++) {
+            straightPaths.push([
+              [selectedPoints[i].lat, selectedPoints[i].lng],
+              [selectedPoints[i + 1].lat, selectedPoints[i + 1].lng]
+            ]);
+          }
+          setRoutePaths(straightPaths);
         }
+      } else {
+        setRoutePaths([]);
       }
-      
-      setRoutePath(newPath);
     };
 
-    updateRoute();
+    updateRoutes();
   }, [selectedPoints]);
 
   // הוספת נקודה למסלול
@@ -162,22 +192,28 @@ const HikingMap = ({ onPointSelect, selectedPoints = [], onPointsUpdate }) => {
         >
           <MapEvents onMapClick={handleMapClick} />
           
-          {/* Base Map Layer */}
+          {/* Israel Hiking Map Tiles */}
+          <TileLayer
+            url="https://israelhiking.osm.org.il/Hebrew/mtbTiles/{z}/{x}/{y}.png"
+            attribution='&copy; <a href="https://israelhiking.osm.org.il">Israel Hiking Map</a>'
+          />
+          
+          {/* Default OSM layer as fallback */}
           <TileLayer
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           />
           
-          {/* Route Path */}
-          {routePath.length > 0 && (
+          {/* Route Paths */}
+          {routePaths.map((path, index) => (
             <Polyline
-              positions={routePath}
-              color="#2196f3"
-              weight={4}
-              opacity={0.8}
-              dashArray="10,5"
+              key={index}
+              positions={path}
+              color="blue"
+              weight={3}
+              opacity={0.7}
             />
-          )}
+          ))}
           
           {/* Markers */}
           {selectedPoints.map((point, index) => (

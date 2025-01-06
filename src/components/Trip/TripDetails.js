@@ -1,4 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
+import { useSelector, useDispatch } from 'react-redux';
+import { selectCurrentTrip, updateTrip } from '../../redux/slices/tripsSlice';
 import {
   Box,
   Typography,
@@ -7,30 +10,154 @@ import {
   Chip,
   Divider,
   useTheme,
-  useMediaQuery
+  useMediaQuery,
+  Button,
+  Tabs,
+  Tab,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Alert,
+  Dialog,
+  DialogContent,
+  DialogActions,
+  Slide
 } from '@mui/material';
 import {
   CalendarToday as CalendarIcon,
-  People as PeopleIcon,
   LocationOn as LocationIcon,
-  Timer as DurationIcon
+  Group as GroupIcon,
+  DirectionsBus as DirectionsBusIcon,
+  LocalHospital as LocalHospitalIcon,
+  School as SchoolIcon,
+  ExpandMore as ExpandMoreIcon,
+  People as PeopleIcon,
+  Timer as DurationIcon,
+  Warning as WarningIcon
 } from '@mui/icons-material';
+import EmergencyContacts from './EmergencyContacts';
+import LocationHistory from './LocationHistory';
+import ParentalApproval from './Forms/ParentalApproval';
+import BusInspectionForm from './Forms/BusInspectionForm';
+import TripChecklist from './TripChecklist';
+import StudentsList from './StudentsList';  
+import EnhancedEquipmentList from './EnhancedEquipmentList';
+import SOSService from '../../services/SOSService';
+import LocationService from '../../services/LocationService'; 
 
-const TripDetails = ({ trip }) => {
+const TripDetails = () => {
+  const { tripId } = useParams();
+  const dispatch = useDispatch();
+  const trip = useSelector(selectCurrentTrip);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-  // נתונים לדוגמה - יוחלפו בנתונים אמיתיים
+  // DEBUG: נדפיס את האובייקט שמגיע
+  console.log('Trip ID:', tripId);
+  console.log('Trip from Redux:', trip);
+
   const tripData = {
-    title: 'טיול שנתי לצפון',
-    startDate: '2024-03-15',
-    endDate: '2024-03-17',
-    participants: 120,
-    location: 'רמת הגולן',
-    duration: '3 ימים',
-    status: 'בתכנון',
-    description: 'טיול שנתי לתלמידי שכבה י׳ הכולל מסלולי הליכה, פעילויות גיבוש ולינת שטח',
-    ...trip
+    ...trip,
+    emergencyContacts: trip?.emergencyContacts || [],
+    locationHistory: trip?.locationHistory || [],
+    status: trip?.status || 'בתכנון',
+    basicDetails: {
+      ...trip?.basicDetails,
+      tripName: trip?.basicDetails?.tripName || trip?.title || 'טיול חדש',
+      startDate: trip?.basicDetails?.startDate || '',
+      endDate: trip?.basicDetails?.endDate || '',
+      location: trip?.basicDetails?.location || trip?.location || 'לא הוגדר',
+      numStudents: trip?.basicDetails?.numStudents || 0,
+      numStaff: trip?.basicDetails?.numStaff || 0,
+      duration: trip?.basicDetails?.duration || (trip?.basicDetails?.startDate && trip?.basicDetails?.endDate ? 
+        `${Math.ceil((new Date(trip?.basicDetails?.endDate) - new Date(trip?.basicDetails?.startDate)) / (1000 * 60 * 60 * 24))} ימים` : 
+        'לא הוגדר')
+    }
+  };
+
+  // DEBUG: נדפיס את האובייקט המעובד
+  console.log('Processed tripData:', tripData);
+
+  const [emergencyContacts, setEmergencyContacts] = useState(tripData.emergencyContacts);
+  const [locationHistory, setLocationHistory] = useState(tripData.locationHistory);
+  const [isTracking, setIsTracking] = useState(false);
+  const [locationStatus, setLocationStatus] = useState("");
+  const [value, setValue] = useState(0);
+  const [selectedForm, setSelectedForm] = useState(0);
+  const [students, setStudents] = useState([]);
+
+  useEffect(() => {
+    if (trip) {
+      dispatch(updateTrip({
+        ...trip,
+        emergencyContacts,
+        locationHistory
+      }));
+    }
+  }, [emergencyContacts, locationHistory, dispatch, trip]);
+
+  useEffect(() => {
+    if (!isTracking) return;
+
+    const checkAndAddLocation = async () => {
+      try {
+        const location = await LocationService.getCurrentLocation(setLocationStatus);
+        const now = new Date();
+        const lastLocation = locationHistory[locationHistory.length - 1];
+        if (!lastLocation || 
+            now.getTime() - new Date(lastLocation.timestamp).getTime() >= 60 * 60 * 1000) {
+          setLocationHistory(prev => [...prev, {
+            ...location,
+            timestamp: now
+          }]);
+        }
+      } catch (error) {
+        setLocationStatus("שגיאה בקבלת המיקום");
+        console.error('Error getting location:', error);
+      }
+    };
+
+    checkAndAddLocation();
+    
+    const interval = setInterval(() => {
+      const now = new Date();
+      if (now.getMinutes() === 0 && now.getSeconds() === 0) {
+        checkAndAddLocation();
+      }
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [isTracking]);
+
+  const handleSOS = async () => {
+    try {
+      const currentLocation = await LocationService.getCurrentLocation();
+      const result = await SOSService.sendSOSAlert(trip, currentLocation);
+      
+      if (result.success) {
+        console.log('SOS alert sent successfully');
+      } else {
+        console.error('Failed to send SOS alert:', result.error);
+      }
+    } catch (error) {
+      console.error('Error sending SOS alert:', error);
+    }
+  };
+
+  const handleStartTracking = () => {
+    setIsTracking(true);
+  };
+
+  const handleStopTracking = () => {
+    setIsTracking(false);
+  };
+
+  const handleChange = (event, newValue) => {
+    setValue(newValue);
+  };
+
+  const handleTabChange = (event, newValue) => {
+    setValue(newValue);
   };
 
   const InfoItem = ({ icon: Icon, text }) => (
@@ -52,111 +179,220 @@ const TripDetails = ({ trip }) => {
   );
 
   return (
-    <Box sx={{ p: { xs: 2, sm: 3 } }}>
-      <Box sx={{ 
-        display: 'flex', 
-        flexDirection: { xs: 'column', sm: 'row' },
-        alignItems: { xs: 'center', sm: 'flex-start' },
-        justifyContent: 'space-between',
-        mb: 3,
-        gap: 2
-      }}>
-        <Typography 
-          variant={isMobile ? "h6" : "h5"} 
-          gutterBottom 
-          fontWeight="bold" 
-          color="primary"
-          textAlign={isMobile ? "center" : "left"}
-        >
-          {tripData.title}
+    <Box>
+      <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
+        <Typography variant="h4" gutterBottom>
+          {tripData.basicDetails?.tripName || 'טיול חדש'}
         </Typography>
-        
-        <Chip 
-          label={tripData.status}
-          color={tripData.status === 'בתכנון' ? 'primary' : 'success'}
-          size={isMobile ? "small" : "medium"}
-        />
+        <Typography variant="subtitle1" color="text.secondary" gutterBottom>
+          {tripData.status}
+        </Typography>
+        <Grid container spacing={3}>
+          <Grid item xs={12} sm={6} md={3}>
+            <InfoItem
+              icon={CalendarIcon}
+              text={tripData.basicDetails?.startDate ? 
+                `תאריך: ${new Date(tripData.basicDetails.startDate).toLocaleDateString('he-IL')} - ${new Date(tripData.basicDetails.endDate).toLocaleDateString('he-IL')}` :
+                'תאריך: לא נקבע'}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <InfoItem
+              icon={LocationIcon}
+              text={`מסלול: ${tripData.basicDetails?.location || 'לא הוגדר'}`}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <InfoItem
+              icon={PeopleIcon}
+              text={`משתתפים: ${(tripData.basicDetails?.numStudents || 0) + (tripData.basicDetails?.numStaff || 0)}`}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <InfoItem
+              icon={DurationIcon}
+              text={`משך: ${tripData.basicDetails?.duration || 'לא הוגדר'}`}
+            />
+          </Grid>
+        </Grid>
+      </Paper>
+
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+        <Tabs value={value} onChange={handleTabChange} aria-label="trip details tabs">
+          <Tab label="צ'קליסט" />
+          <Tab label="רשימת תלמידים" />
+          <Tab label="ציוד" />
+          <Tab label="אנשי קשר לחירום" />
+          <Tab label="מעקב מיקום" />
+          <Tab label="טפסים ואישורים" />
+        </Tabs>
       </Box>
 
-      <Grid container spacing={3}>
-        <Grid item xs={12} md={6}>
-          <Paper 
-            elevation={2} 
-            sx={{ 
-              p: { xs: 2, sm: 3 },
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column'
-            }}
+      {value === 0 && <TripChecklist tripId={trip?.id} onChecklistUpdate={(checklist) => {
+        if (trip) {
+          dispatch(updateTrip({
+            ...trip,
+            checklist
+          }));
+        }
+      }} />}
+      {value === 1 && (
+        <StudentsList
+          tripId={trip?.id}
+          onStudentsChange={setStudents}
+          onSendForms={() => {
+            setValue(5); // מעבר לטאב טפסים
+            setSelectedForm(0); // בחירת טופס אישור הורים
+          }}
+        />
+      )}
+      {value === 2 && <EnhancedEquipmentList />}
+      {value === 3 && <EmergencyContacts contacts={emergencyContacts} setContacts={setEmergencyContacts} />}
+      {value === 4 && (
+        <Box>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleStartTracking}
+            disabled={locationStatus === "tracking"}
+            sx={{ mb: 2 }}
           >
-            <Typography 
-              variant={isMobile ? "subtitle1" : "h6"} 
-              gutterBottom
-              textAlign={isMobile ? "center" : "left"}
-            >
-              פרטים כלליים
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
-            
-            <Grid container spacing={2}>
-              <Grid item xs={12}>
-                <InfoItem 
-                  icon={CalendarIcon} 
-                  text={`${new Date(tripData.startDate).toLocaleDateString('he-IL')} - ${new Date(tripData.endDate).toLocaleDateString('he-IL')}`}
-                />
-              </Grid>
-              
-              <Grid item xs={12}>
-                <InfoItem 
-                  icon={PeopleIcon} 
-                  text={`${tripData.participants} משתתפים`}
-                />
-              </Grid>
-              
-              <Grid item xs={12}>
-                <InfoItem 
-                  icon={LocationIcon} 
-                  text={tripData.location}
-                />
-              </Grid>
-              
-              <Grid item xs={12}>
-                <InfoItem 
-                  icon={DurationIcon} 
-                  text={tripData.duration}
-                />
-              </Grid>
+            {locationStatus === "tracking" ? "מעקב מיקום פעיל" : "התחל מעקב מיקום"}
+          </Button>
+          <LocationHistory history={locationHistory} />
+        </Box>
+      )}
+      {value === 5 && (
+        <Box>
+          <Typography variant="h6" gutterBottom>
+            טפסים ואישורים
+          </Typography>
+          
+          <Grid container spacing={3}>
+            <Grid item xs={12} sm={6} md={4}>
+              <Paper
+                sx={{
+                  p: 2,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  cursor: 'pointer',
+                  height: '100%',
+                  '&:hover': {
+                    bgcolor: 'action.hover'
+                  }
+                }}
+                onClick={() => setSelectedForm(selectedForm === 0 ? null : 0)}
+              >
+                <GroupIcon color="primary" sx={{ fontSize: 40, mb: 2 }} />
+                <Typography variant="h6" gutterBottom>
+                  טופס אישור הורים
+                </Typography>
+                <Typography variant="body2" color="text.secondary" align="center">
+                  אישור השתתפות בטיול וחתימת הורים
+                </Typography>
+              </Paper>
             </Grid>
-          </Paper>
-        </Grid>
 
-        <Grid item xs={12} md={6}>
-          <Paper 
-            elevation={2} 
-            sx={{ 
-              p: { xs: 2, sm: 3 },
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column'
-            }}
-          >
-            <Typography 
-              variant={isMobile ? "subtitle1" : "h6"} 
-              gutterBottom
-              textAlign={isMobile ? "center" : "left"}
+            <Grid item xs={12} sm={6} md={4}>
+              <Paper
+                sx={{
+                  p: 2,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  cursor: 'pointer',
+                  height: '100%',
+                  '&:hover': {
+                    bgcolor: 'action.hover'
+                  }
+                }}
+                onClick={() => setSelectedForm(selectedForm === 1 ? null : 1)}
+              >
+                <DirectionsBusIcon color="primary" sx={{ fontSize: 40, mb: 2 }} />
+                <Typography variant="h6" gutterBottom>
+                  טופס בדיקת אוטובוס
+                </Typography>
+                <Typography variant="body2" color="text.secondary" align="center">
+                  בדיקת תקינות ובטיחות האוטובוס
+                </Typography>
+              </Paper>
+            </Grid>
+
+            <Grid item xs={12} sm={6} md={4}>
+              <Paper
+                sx={{
+                  p: 2,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  height: '100%',
+                  opacity: 0.6
+                }}
+              >
+                <LocalHospitalIcon color="disabled" sx={{ fontSize: 40, mb: 2 }} />
+                <Typography variant="h6" color="text.disabled" gutterBottom>
+                  אישור רפואי
+                </Typography>
+                <Typography variant="body2" color="text.disabled" align="center">
+                  יתווסף בקרוב...
+                </Typography>
+              </Paper>
+            </Grid>
+
+            <Grid item xs={12} sm={6} md={4}>
+              <Paper
+                sx={{
+                  p: 2,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  height: '100%',
+                  opacity: 0.6
+                }}
+              >
+                <SchoolIcon color="disabled" sx={{ fontSize: 40, mb: 2 }} />
+                <Typography variant="h6" color="text.disabled" gutterBottom>
+                  אישור בית ספר
+                </Typography>
+                <Typography variant="body2" color="text.disabled" align="center">
+                  יתווסף בקרוב...
+                </Typography>
+              </Paper>
+            </Grid>
+          </Grid>
+
+          {selectedForm !== null && (
+            <Dialog
+              open={selectedForm !== null}
+              onClose={() => setSelectedForm(null)}
+              maxWidth="md"
+              fullWidth
+              TransitionComponent={Slide}
+              TransitionProps={{ direction: "up" }}
+              PaperProps={{
+                sx: {
+                  minHeight: '80vh',
+                  maxHeight: '90vh',
+                  overflowY: 'auto'
+                }
+              }}
             >
-              תיאור הטיול
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
-            <Typography 
-              variant={isMobile ? "body2" : "body1"}
-              textAlign={isMobile ? "center" : "right"}
-            >
-              {tripData.description}
-            </Typography>
-          </Paper>
-        </Grid>
-      </Grid>
+              <DialogContent>
+                {selectedForm === 0 && (
+                  <ParentalApproval tripData={tripData} students={students} />
+                )}
+                {selectedForm === 1 && (
+                  <BusInspectionForm tripData={tripData} />
+                )}
+              </DialogContent>
+              <DialogActions>
+                <Button onClick={() => setSelectedForm(null)}>סגור</Button>
+              </DialogActions>
+            </Dialog>
+          )}
+        </Box>
+      )}
     </Box>
   );
 };

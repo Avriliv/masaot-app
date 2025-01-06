@@ -5,8 +5,8 @@ import rtlPlugin from 'stylis-plugin-rtl';
 import { CacheProvider } from '@emotion/react';
 import createCache from '@emotion/cache';
 import { prefixer } from 'stylis';
-import { BrowserRouter, Routes, Route, Navigate, UNSAFE_NavigationContext as NavigationContext } from 'react-router-dom';
-import RoutePlanning from './components/planning/RoutePlanning';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import Map from './components/Map/Map';
 import Navbar from './components/Navbar';
 import HomePage from './components/LandingPage';
 import MyTrips from './components/myTrips/MyTrips';
@@ -17,6 +17,12 @@ import SecurityManagement from './components/Security/SecurityManagement';
 import LogisticsManagement from './components/Logistics/LogisticsManagement';
 import DashboardPage from './components/Trip/DashboardPage';
 import TripBagView from './components/tripBag/TripBagView';
+import TripDetails from './components/Trip/TripDetails';
+import ParentalApprovalForm from './components/approvals/ParentalApprovalForm';
+import LearningCenter from './components/Learning/LearningCenter';
+import LiveTrackingView from './components/LiveTracking/LiveTrackingView';
+import { TripProvider } from './context/TripContext';
+import { TripsProvider } from './context/TripsContext';
 
 // Create rtl cache
 const rtlCache = createCache({
@@ -30,7 +36,7 @@ const theme = createTheme({
   palette: {
     mode: 'light',
     primary: {
-      main: '#2196f3',
+      main: '#1976d2',
     },
     secondary: {
       main: '#dc004e',
@@ -41,7 +47,11 @@ const theme = createTheme({
     },
   },
   typography: {
-    fontFamily: 'Assistant, sans-serif',
+    fontFamily: [
+      'Rubik',
+      'Arial',
+      'sans-serif',
+    ].join(','),
   },
   components: {
     MuiButton: {
@@ -84,29 +94,37 @@ const App = () => {
   }, []);
 
   return (
-    <CacheProvider value={rtlCache}>
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-            <Navbar pageTitle={pageTitle} pageDescription={pageDescription} />
-            <Routes>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/map" element={<RoutePlanning />} />
-              <Route path="/my-trips" element={<MyTrips />} />
-              <Route path="/new-trip" element={<TripPlanningSteps />} />
-              <Route path="/weather" element={<WeatherPage />} />
-              <Route path="/participants" element={<ParticipantsManagement />} />
-              <Route path="/security" element={<SecurityManagement />} />
-              <Route path="/logistics" element={<LogisticsManagement />} />
-              <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/trip-bag" element={<TripBagView />} />
-              <Route path="*" element={<Navigate to="/" />} />
-            </Routes>
-          </Box>
-        </BrowserRouter>
-      </ThemeProvider>
-    </CacheProvider>
+    <TripsProvider>
+      <CacheProvider value={rtlCache}>
+        <ThemeProvider theme={theme}>
+          <CssBaseline />
+          <TripProvider>
+            <Router>
+              <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+                <Navbar pageTitle={pageTitle} pageDescription={pageDescription} />
+                <Routes>
+                  <Route path="/" element={<HomePage />} />
+                  <Route path="/map" element={<Map />} />
+                  <Route path="/my-trips" element={<MyTrips />} />
+                  <Route path="/new-trip" element={<TripPlanningSteps />} />
+                  <Route path="/weather" element={<WeatherPage />} />
+                  <Route path="/learning-center" element={<LearningCenter />} />
+                  <Route path="/participants" element={<ParticipantsManagement />} />
+                  <Route path="/security" element={<SecurityManagement />} />
+                  <Route path="/logistics" element={<LogisticsManagement />} />
+                  <Route path="/dashboard" element={<DashboardPage />} />
+                  <Route path="/trip-bag" element={<TripBagView />} />
+                  <Route path="/trip/:tripId" element={<TripDetails />} />
+                  <Route path="/approval/:tripId/:participantId" element={<ParentalApprovalForm />} />
+                  <Route path="/live-tracking" element={<LiveTrackingView />} />
+                  <Route path="*" element={<Navigate to="/" />} />
+                </Routes>
+              </Box>
+            </Router>
+          </TripProvider>
+        </ThemeProvider>
+      </CacheProvider>
+    </TripsProvider>
   );
 };
 

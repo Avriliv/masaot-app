@@ -1,468 +1,216 @@
 import React, { useState } from 'react';
-import {
-  Box,
-  Container,
-  Typography,
-  Paper,
-  Tabs,
-  Tab,
-  Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  IconButton,
-  TextField,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Grid,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemSecondaryAction
+import { 
+    Box, Button, Typography, Dialog, DialogTitle, 
+    DialogContent, DialogActions, TextField, IconButton,
+    Table, TableBody, TableCell, TableContainer, 
+    TableHead, TableRow, Paper
 } from '@mui/material';
-import {
-  Add as AddIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon,
-  Email as EmailIcon,
-  Download as DownloadIcon,
-  Group as GroupIcon
-} from '@mui/icons-material';
+import DeleteIcon from '@mui/icons-material/Delete';
+import EditIcon from '@mui/icons-material/Edit';
+import SendIcon from '@mui/icons-material/Send';
+import { useTrip } from '../../context/TripContext';
 
-const ParticipantsManagement = () => {
-  const [activeTab, setActiveTab] = useState(0);
-  const [participants, setParticipants] = useState([]);
-  const [openDialog, setOpenDialog] = useState(false);
-  const [selectedParticipant, setSelectedParticipant] = useState(null);
+const ParticipantsManagement = ({ onNext, onBack }) => {
+    const { tripState, updateTrip } = useTrip();
+    const [participants, setParticipants] = useState(tripState.participants || []);
+    const [openDialog, setOpenDialog] = useState(false);
+    const [currentParticipant, setCurrentParticipant] = useState(null);
+    const [formData, setFormData] = useState({
+        name: '',
+        parentName: '',
+        parentEmail: '',
+        parentPhone: '',
+        class: '',
+        medicalInfo: ''
+    });
 
-  // טאבים בדף
-  const tabs = [
-    { label: 'רשימת משתתפים', value: 0 },
-    { label: 'אישורי הורים', value: 1 },
-    { label: 'מידע רפואי', value: 2 },
-    { label: 'קבוצות', value: 3 }
-  ];
+    const handleOpenDialog = (participant = null) => {
+        if (participant) {
+            setFormData(participant);
+            setCurrentParticipant(participant);
+        } else {
+            setFormData({
+                name: '',
+                parentName: '',
+                parentEmail: '',
+                parentPhone: '',
+                class: '',
+                medicalInfo: ''
+            });
+            setCurrentParticipant(null);
+        }
+        setOpenDialog(true);
+    };
 
-  // טיפול בהוספת/עריכת משתתף
-  const handleParticipantSubmit = (participant) => {
-    if (selectedParticipant) {
-      // עריכת משתתף קיים
-      setParticipants(prev => prev.map(p => 
-        p.id === selectedParticipant.id ? { ...p, ...participant } : p
-      ));
-    } else {
-      // הוספת משתתף חדש
-      setParticipants(prev => [...prev, { ...participant, id: Date.now() }]);
-    }
-    setOpenDialog(false);
-    setSelectedParticipant(null);
-  };
+    const handleCloseDialog = () => {
+        setOpenDialog(false);
+        setCurrentParticipant(null);
+    };
 
-  // שליחת אישורי הורים במייל
-  const sendParentalApproval = (participant) => {
-    // TODO: implement email sending
-    console.log('Sending parental approval to:', participant.email);
-  };
+    const handleSaveParticipant = () => {
+        if (currentParticipant) {
+            // עדכון משתתף קיים
+            const updatedParticipants = participants.map(p => 
+                p.id === currentParticipant.id ? { ...formData, id: p.id } : p
+            );
+            setParticipants(updatedParticipants);
+        } else {
+            // הוספת משתתף חדש
+            const newParticipant = {
+                ...formData,
+                id: Date.now(),
+                approvalStatus: 'pending'
+            };
+            setParticipants([...participants, newParticipant]);
+        }
+        
+        handleCloseDialog();
+    };
 
-  return (
-    <Container maxWidth="xl">
-      <Box sx={{ 
-        width: '100%',
-        minHeight: '100vh',
-        py: 4,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 2
-      }}>
-        {/* כותרת */}
-        <Typography variant="h5" component="h1" gutterBottom>
-          ניהול משתתפים
-        </Typography>
+    const handleDeleteParticipant = (id) => {
+        setParticipants(participants.filter(p => p.id !== id));
+    };
 
-        {/* טאבים */}
-        <Paper sx={{ width: '100%' }}>
-          <Tabs
-            value={activeTab}
-            onChange={(e, newValue) => setActiveTab(newValue)}
-            variant="scrollable"
-            scrollButtons="auto"
-            sx={{ 
-              borderBottom: 1, 
-              borderColor: 'divider',
-              minHeight: 48,
-              '& .MuiTab-root': {
-                minHeight: 48,
-                py: 1
-              }
-            }}
-          >
-            {tabs.map(tab => (
-              <Tab key={tab.value} label={tab.label} />
-            ))}
-          </Tabs>
-        </Paper>
+    const handleSendApproval = (participant) => {
+        // כאן תהיה הלוגיקה לשליחת אישור להורים
+        console.log('Sending approval request to:', participant.parentEmail);
+    };
 
-        {/* תוכן הטאב */}
-        <Box sx={{ 
-          flex: 1,
-          width: '100%',
-          bgcolor: 'background.paper',
-          borderRadius: 1,
-          p: 2
-        }}>
-          {activeTab === 0 && (
-            <>
-              {/* כפתור הוספת משתתף */}
-              <Button
-                variant="contained"
-                startIcon={<AddIcon />}
-                onClick={() => setOpenDialog(true)}
-                sx={{ mb: 2 }}
-              >
-                הוסף משתתף
-              </Button>
+    const handleContinue = () => {
+        // שמירת המשתתפים בקונטקסט
+        updateTrip({
+            ...tripState,
+            participants: participants
+        });
+        onNext();
+    };
 
-              {/* טבלת משתתפים */}
-              <TableContainer component={Paper} sx={{ mt: 2 }}>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>שם מלא</TableCell>
-                      <TableCell>גיל</TableCell>
-                      <TableCell>טלפון</TableCell>
-                      <TableCell>דוא&quot;ל</TableCell>
-                      <TableCell>אישור הורים</TableCell>
-                      <TableCell>מידע רפואי</TableCell>
-                      <TableCell>פעולות</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {participants.map((participant) => (
-                      <TableRow key={participant.id}>
-                        <TableCell>{participant.fullName}</TableCell>
-                        <TableCell>{participant.age}</TableCell>
-                        <TableCell>{participant.phone}</TableCell>
-                        <TableCell>{participant.email}</TableCell>
-                        <TableCell>
-                          {participant.parentalApproval ? (
-                            <DownloadIcon color="success" />
-                          ) : (
-                            <IconButton
-                              size="small"
-                              onClick={() => sendParentalApproval(participant)}
-                            >
-                              <EmailIcon />
-                            </IconButton>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {participant.medicalInfo ? 'יש' : 'אין'}
-                        </TableCell>
-                        <TableCell>
-                          <IconButton
-                            size="small"
-                            onClick={() => {
-                              setSelectedParticipant(participant);
-                              setOpenDialog(true);
-                            }}
-                          >
-                            <EditIcon />
-                          </IconButton>
-                          <IconButton
-                            size="small"
-                            onClick={() => {
-                              setParticipants(prev => 
-                                prev.filter(p => p.id !== participant.id)
-                              );
-                            }}
-                          >
-                            <DeleteIcon />
-                          </IconButton>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </>
-          )}
+    return (
+        <Box>
+            <Typography variant="h5" gutterBottom>
+                ניהול משתתפים
+            </Typography>
 
-          {activeTab === 1 && (
-            <Box sx={{ width: '100%' }}>
-              <Typography variant="h6" gutterBottom>
-                אישורי הורים
-              </Typography>
-              <TableContainer component={Paper}>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>שם משתתף</TableCell>
-                      <TableCell>סטטוס</TableCell>
-                      <TableCell>תאריך שליחה</TableCell>
-                      <TableCell>תאריך אישור</TableCell>
-                      <TableCell>פעולות</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {participants.map((participant) => (
-                      <TableRow key={participant.id}>
-                        <TableCell>{participant.fullName}</TableCell>
-                        <TableCell>
-                          {participant.parentalApproval ? 'אושר' : 'ממתין'}
-                        </TableCell>
-                        <TableCell>
-                          {participant.approvalSentDate || 'טרם נשלח'}
-                        </TableCell>
-                        <TableCell>
-                          {participant.approvalDate || '-'}
-                        </TableCell>
-                        <TableCell>
-                          <IconButton
-                            size="small"
-                            onClick={() => sendParentalApproval(participant)}
-                          >
-                            <EmailIcon />
-                          </IconButton>
-                          {participant.parentalApproval && (
-                            <IconButton size="small">
-                              <DownloadIcon />
-                            </IconButton>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
+            <Box sx={{ mb: 2 }}>
+                <Button 
+                    variant="contained" 
+                    onClick={() => handleOpenDialog()}
+                    sx={{ mb: 2 }}
+                >
+                    הוסף משתתף
+                </Button>
             </Box>
-          )}
 
-          {activeTab === 2 && (
-            <Box sx={{ width: '100%' }}>
-              <Typography variant="h6" gutterBottom>
-                מידע רפואי
-              </Typography>
-              <TableContainer component={Paper}>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>שם משתתף</TableCell>
-                      <TableCell>מצב רפואי</TableCell>
-                      <TableCell>תרופות</TableCell>
-                      <TableCell>הערות</TableCell>
-                      <TableCell>פעולות</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {participants.map((participant) => (
-                      <TableRow key={participant.id}>
-                        <TableCell>{participant.fullName}</TableCell>
-                        <TableCell>
-                          {participant.medicalCondition || 'תקין'}
-                        </TableCell>
-                        <TableCell>
-                          {participant.medications || 'אין'}
-                        </TableCell>
-                        <TableCell>
-                          {participant.medicalNotes || '-'}
-                        </TableCell>
-                        <TableCell>
-                          <IconButton
-                            size="small"
-                            onClick={() => {
-                              setSelectedParticipant(participant);
-                              setOpenDialog(true);
-                            }}
-                          >
-                            <EditIcon />
-                          </IconButton>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
+            <TableContainer component={Paper}>
+                <Table>
+                    <TableHead>
+                        <TableRow>
+                            <TableCell>שם</TableCell>
+                            <TableCell>כיתה</TableCell>
+                            <TableCell>שם הורה</TableCell>
+                            <TableCell>טלפון</TableCell>
+                            <TableCell>סטטוס אישור</TableCell>
+                            <TableCell>פעולות</TableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {participants.map((participant) => (
+                            <TableRow key={participant.id}>
+                                <TableCell>{participant.name}</TableCell>
+                                <TableCell>{participant.class}</TableCell>
+                                <TableCell>{participant.parentName}</TableCell>
+                                <TableCell>{participant.parentPhone}</TableCell>
+                                <TableCell>{participant.approvalStatus}</TableCell>
+                                <TableCell>
+                                    <IconButton onClick={() => handleOpenDialog(participant)}>
+                                        <EditIcon />
+                                    </IconButton>
+                                    <IconButton onClick={() => handleDeleteParticipant(participant.id)}>
+                                        <DeleteIcon />
+                                    </IconButton>
+                                    <IconButton onClick={() => handleSendApproval(participant)}>
+                                        <SendIcon />
+                                    </IconButton>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
                 </Table>
-              </TableContainer>
-            </Box>
-          )}
+            </TableContainer>
 
-          {activeTab === 3 && (
-            <Box sx={{ width: '100%' }}>
-              <Typography variant="h6" gutterBottom>
-                קבוצות
-              </Typography>
-              <Grid container spacing={3}>
-                <Grid item xs={12} md={4}>
-                  <Paper sx={{ 
-                    p: 2,
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column'
-                  }}>
-                    <Typography variant="subtitle1" gutterBottom>
-                      קבוצה א'
-                    </Typography>
-                    <List>
-                      {participants.slice(0, 5).map((participant) => (
-                        <ListItem
-                          key={participant.id}
-                          secondaryAction={
-                            <IconButton edge="end" size="small">
-                              <EditIcon />
-                            </IconButton>
-                          }
-                        >
-                          <ListItemText
-                            primary={participant.fullName}
-                            secondary={`גיל: ${participant.age}`}
-                          />
-                        </ListItem>
-                      ))}
-                    </List>
-                  </Paper>
-                </Grid>
-                <Grid item xs={12} md={4}>
-                  <Paper sx={{ 
-                    p: 2,
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column'
-                  }}>
-                    <Typography variant="subtitle1" gutterBottom>
-                      קבוצה ב'
-                    </Typography>
-                    <List>
-                      {participants.slice(5, 10).map((participant) => (
-                        <ListItem
-                          key={participant.id}
-                          secondaryAction={
-                            <IconButton edge="end" size="small">
-                              <EditIcon />
-                            </IconButton>
-                          }
-                        >
-                          <ListItemText
-                            primary={participant.fullName}
-                            secondary={`גיל: ${participant.age}`}
-                          />
-                        </ListItem>
-                      ))}
-                    </List>
-                  </Paper>
-                </Grid>
-                <Grid item xs={12} md={4}>
-                  <Paper sx={{ 
-                    p: 2,
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column'
-                  }}>
-                    <Typography variant="subtitle1" gutterBottom>
-                      קבוצה ג'
-                    </Typography>
-                    <List>
-                      {participants.slice(10, 15).map((participant) => (
-                        <ListItem
-                          key={participant.id}
-                          secondaryAction={
-                            <IconButton edge="end" size="small">
-                              <EditIcon />
-                            </IconButton>
-                          }
-                        >
-                          <ListItemText
-                            primary={participant.fullName}
-                            secondary={`גיל: ${participant.age}`}
-                          />
-                        </ListItem>
-                      ))}
-                    </List>
-                  </Paper>
-                </Grid>
-              </Grid>
+            <Dialog open={openDialog} onClose={handleCloseDialog}>
+                <DialogTitle>
+                    {currentParticipant ? 'ערוך משתתף' : 'הוסף משתתף'}
+                </DialogTitle>
+                <DialogContent>
+                    <TextField
+                        fullWidth
+                        label="שם התלמיד"
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        margin="normal"
+                    />
+                    <TextField
+                        fullWidth
+                        label="כיתה"
+                        value={formData.class}
+                        onChange={(e) => setFormData({ ...formData, class: e.target.value })}
+                        margin="normal"
+                    />
+                    <TextField
+                        fullWidth
+                        label="שם ההורה"
+                        value={formData.parentName}
+                        onChange={(e) => setFormData({ ...formData, parentName: e.target.value })}
+                        margin="normal"
+                    />
+                    <TextField
+                        fullWidth
+                        label="אימייל הורה"
+                        type="email"
+                        value={formData.parentEmail}
+                        onChange={(e) => setFormData({ ...formData, parentEmail: e.target.value })}
+                        margin="normal"
+                    />
+                    <TextField
+                        fullWidth
+                        label="טלפון הורה"
+                        value={formData.parentPhone}
+                        onChange={(e) => setFormData({ ...formData, parentPhone: e.target.value })}
+                        margin="normal"
+                    />
+                    <TextField
+                        fullWidth
+                        label="מידע רפואי"
+                        multiline
+                        rows={3}
+                        value={formData.medicalInfo}
+                        onChange={(e) => setFormData({ ...formData, medicalInfo: e.target.value })}
+                        margin="normal"
+                    />
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleCloseDialog}>ביטול</Button>
+                    <Button onClick={handleSaveParticipant} variant="contained">
+                        שמור
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between' }}>
+                <Button onClick={onBack}>
+                    חזור
+                </Button>
+                <Button 
+                    variant="contained" 
+                    onClick={handleContinue}
+                    disabled={participants.length === 0}
+                >
+                    המשך
+                </Button>
             </Box>
-          )}
         </Box>
-      </Box>
-
-      {/* דיאלוג הוספת/עריכת משתתף */}
-      <Dialog 
-        open={openDialog} 
-        onClose={() => {
-          setOpenDialog(false);
-          setSelectedParticipant(null);
-        }}
-        maxWidth="sm"
-        fullWidth
-        sx={{
-          '& .MuiDialog-paper': {
-            p: 2
-          }
-        }}
-      >
-        <DialogTitle>
-          {selectedParticipant ? 'עריכת משתתף' : 'הוספת משתתף חדש'}
-        </DialogTitle>
-        <DialogContent>
-          <Grid container spacing={2} sx={{ mt: 1 }}>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="שם מלא"
-                defaultValue={selectedParticipant?.fullName}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="גיל"
-                type="number"
-                defaultValue={selectedParticipant?.age}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="טלפון"
-                defaultValue={selectedParticipant?.phone}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="דוא&quot;ל"
-                type="email"
-                defaultValue={selectedParticipant?.email}
-              />
-            </Grid>
-          </Grid>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => {
-            setOpenDialog(false);
-            setSelectedParticipant(null);
-          }}>
-            ביטול
-          </Button>
-          <Button 
-            variant="contained"
-            onClick={() => handleParticipantSubmit({
-              fullName: 'שם זמני', // TODO: get actual values from form
-              age: 18,
-              phone: '050-0000000',
-              email: 'temp@email.com'
-            })}
-          >
-            {selectedParticipant ? 'שמור' : 'הוסף'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Container>
-  );
+    );
 };
 
 export default ParticipantsManagement;

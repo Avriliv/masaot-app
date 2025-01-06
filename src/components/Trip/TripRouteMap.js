@@ -118,23 +118,26 @@ const TripRouteMap = ({ tripData, onNext, onBack }) => {
         </Box>
       </Paper>
 
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 3 }}>
         <Button
-          onClick={onBack}
-          startIcon={<ArrowBack />}
           variant="outlined"
-          color="primary"
+          startIcon={<ArrowForward />}
+          onClick={onBack}
         >
           חזור
         </Button>
+        
         <Button
-          onClick={() => onNext(routePoints)}
-          endIcon={<ArrowForward />}
           variant="contained"
-          color="primary"
+          endIcon={<ArrowBack />}
+          onClick={() => {
+            if (routePoints.length >= 2) {
+              onNext({ routePoints });
+            }
+          }}
           disabled={routePoints.length < 2}
         >
-          המשך לחלוקה לימים
+          המשך
         </Button>
       </Box>
     </Box>

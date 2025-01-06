@@ -6,6 +6,43 @@ class AutoSaveService {
     this.saveToServer = debounce(this._saveToServer, 3000);
   }
 
+  // שמירת טיול
+  saveTrip(tripData) {
+    if (!tripData.id) return;
+    this.saveToLocalStorage(tripData.id, tripData);
+    this.saveToServer(tripData.id, tripData);
+  }
+
+  // טעינת טיול
+  async loadTrip() {
+    // בשלב זה נטען רק את הטיול האחרון ששמור
+    try {
+      const keys = Object.keys(localStorage);
+      const tripKeys = keys.filter(key => key.startsWith('trip_'));
+      if (tripKeys.length === 0) return null;
+
+      // נטען את הטיול האחרון לפי תאריך שמירה
+      let latestTrip = null;
+      let latestDate = new Date(0);
+
+      for (const key of tripKeys) {
+        const savedData = this.loadFromLocalStorage(key.replace('trip_', ''));
+        if (savedData && savedData.lastSaved) {
+          const savedDate = new Date(savedData.lastSaved);
+          if (savedDate > latestDate) {
+            latestDate = savedDate;
+            latestTrip = savedData.data;
+          }
+        }
+      }
+
+      return latestTrip;
+    } catch (error) {
+      console.error('Error loading trip:', error);
+      return null;
+    }
+  }
+
   // שמירה מקומית
   _saveToLocalStorage(tripId, data) {
     try {

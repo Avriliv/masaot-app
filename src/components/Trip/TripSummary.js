@@ -23,12 +23,23 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import HikingMap from '../Map/HikingMap';
+import { useTrip } from '../../context/TripContext';
 
 const TripSummary = () => {
   const navigate = useNavigate();
+  const { tripState, updateStatus } = useTrip();
 
   const handleSave = () => {
-    // TODO: שמירת הטיול במערכת
+    // שמירת סטטוס הטיול כ"הושלם"
+    updateStatus('completed');
+    
+    // שמירת זמן העדכון האחרון
+    // dispatch({
+    //   type: 'UPDATE_LAST_MODIFIED',
+    //   payload: new Date().toISOString()
+    // });
+
+    // ניווט לדף הטיולים שלי
     navigate('/my-trips');
   };
 
@@ -38,6 +49,11 @@ const TripSummary = () => {
 
   const handleShare = () => {
     // TODO: שיתוף הטיול
+  };
+
+  const formatDate = (date) => {
+    if (!date) return '';
+    return new Date(date).toLocaleDateString('he-IL');
   };
 
   return (
@@ -57,21 +73,21 @@ const TripSummary = () => {
               <ListItem>
                 <ListItemText 
                   primary="שם הטיול" 
-                  secondary="טיול שנתי לצפון" 
+                  secondary={tripState.basicDetails.tripName || 'לא הוגדר'} 
                 />
               </ListItem>
               <Divider />
               <ListItem>
                 <ListItemText 
                   primary="תאריכים" 
-                  secondary="15-17 במרץ, 2024" 
+                  secondary={`${formatDate(tripState.basicDetails.startDate)} - ${formatDate(tripState.basicDetails.endDate)}`} 
                 />
               </ListItem>
               <Divider />
               <ListItem>
                 <ListItemText 
                   primary="מספר משתתפים" 
-                  secondary="45 תלמידים, 5 מורים" 
+                  secondary={`${tripState.basicDetails.participantsCount || 0} משתתפים`} 
                 />
               </ListItem>
             </List>
@@ -101,7 +117,7 @@ const TripSummary = () => {
                     <TransportIcon sx={{ fontSize: 40, mb: 1 }} />
                     <Typography variant="h6">הסעות</Typography>
                     <Typography variant="body2" color="text.secondary">
-                      אוטובוס צמוד למשך כל הטיול
+                      {tripState.logistics?.transportation || 'לא הוגדר'}
                     </Typography>
                   </CardContent>
                 </Card>
@@ -112,7 +128,7 @@ const TripSummary = () => {
                     <AccommodationIcon sx={{ fontSize: 40, mb: 1 }} />
                     <Typography variant="h6">לינה</Typography>
                     <Typography variant="body2" color="text.secondary">
-                      אכסניית אנ"א בטבריה
+                      {tripState.logistics?.accommodation || 'לא הוגדר'}
                     </Typography>
                   </CardContent>
                 </Card>
@@ -123,7 +139,7 @@ const TripSummary = () => {
                     <FoodIcon sx={{ fontSize: 40, mb: 1 }} />
                     <Typography variant="h6">כלכלה</Typography>
                     <Typography variant="body2" color="text.secondary">
-                      פנסיון מלא כולל ארוחות שטח
+                      {tripState.logistics?.food || 'לא הוגדר'}
                     </Typography>
                   </CardContent>
                 </Card>
@@ -134,7 +150,7 @@ const TripSummary = () => {
                     <EquipmentIcon sx={{ fontSize: 40, mb: 1 }} />
                     <Typography variant="h6">ציוד</Typography>
                     <Typography variant="body2" color="text.secondary">
-                      ציוד הליכה ולינה בסיסי
+                      {tripState.logistics?.equipment || 'לא הוגדר'}
                     </Typography>
                   </CardContent>
                 </Card>
@@ -170,7 +186,7 @@ const TripSummary = () => {
           startIcon={<Save />}
           onClick={handleSave}
         >
-          שמור טיול
+          סיים תכנון
         </Button>
       </Box>
     </Box>

@@ -24,14 +24,9 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions
+  DialogActions,
+  Autocomplete
 } from '@mui/material';
-import { 
-  DatePicker, 
-  TimePicker,
-  LocalizationProvider
-} from '@mui/x-date-pickers';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { 
   Home as HomeIcon, 
   ExpandMore as ExpandMoreIcon, 
@@ -45,7 +40,6 @@ import {
   ArrowForward as ArrowForwardIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import he from 'date-fns/locale/he';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import rtlPlugin from 'stylis-plugin-rtl';
 import { CacheProvider } from '@emotion/react';
@@ -63,240 +57,256 @@ const cacheRtl = createCache({
   stylisPlugins: [prefixer, rtlPlugin],
 });
 
-const NewTrip = ({ onSave, data }) => {
+// רשימת מקומות לדוגמה (יש להחליף עם API אמיתי)
+const israelLocations = [
+  'הר מירון',
+  'מכתש רמון',
+  'עין גדי',
+  'הר הרצל',
+  'מצדה',
+  'נחל דוד',
+  'חוף דור',
+  'הר תבור',
+  'ראש הנקרה',
+  'עין עבדת'
+];
+
+const gradeOptions = [
+  'כיתה א׳',
+  'כיתה ב׳',
+  'כיתה ג׳',
+  'כיתה ד׳',
+  'כיתה ה׳',
+  'כיתה ו׳',
+  'כיתה ז׳',
+  'כיתה ח׳',
+  'כיתה ט׳',
+  'כיתה י׳',
+  'כיתה י״א',
+  'כיתה י״ב',
+  'אחר'
+];
+
+const organizationTypes = [
+  'בית ספר',
+  'תנועת נוער',
+  'מכינה קדם צבאית',
+  'צבא',
+  'מועצה מקומית',
+  'אחר'
+];
+
+const NewTrip = ({ onSubmit, onBack, submitButtonText, backButtonText, submitButtonIcon }) => {
   const navigate = useNavigate();
-  const [openDialog, setOpenDialog] = useState(false);
-  const [newPointName, setNewPointName] = useState('');
-  const [formData, setFormData] = useState(data || {
+  const [formData, setFormData] = useState({
     tripName: '',
     description: '',
-    organizationType: '',
-    ageGroup: '',
-    studentsCount: '',
-    instructorsCount: '',
-    medicsCount: '',
-    securityCount: '',
-    startDate: null,
-    endDate: null,
-    startTime: null,
-    endTime: null,
-    duration: 1,
-    startPoint: '',
-    endPoint: '',
-    routePoints: [], // מערך לשמירת נקודות הביניים במסלול
-    dailyRoutes: []
+    startDate: '',
+    endDate: '',
+    grade: '',
+    type: '',
+    numberOfDays: '',
+    startLocation: '',
+    endLocation: '',
+    organizationType: ''
   });
 
-  // חישוב כמות אנשי צוות נדרשים
-  const calculateRequiredStaff = (studentsCount) => {
-    const count = parseInt(studentsCount) || 0;
-    if (count === 0) return { medics: 0, security: 0, instructors: 0 };
+  const [showLocationFields, setShowLocationFields] = useState(false);
 
-    // חישוב לפי תקן משרד החינוך
-    let medics = 1; // חובש אחד מינימום
-    if (count > 50) {
-      medics = Math.ceil(count / 50); // חובש נוסף לכל 50 תלמידים
-    }
-
-    let security = 1; // מאבטח אחד מינימום
-    if (count > 100) {
-      security = Math.ceil(count / 100); // מאבטח נוסף לכל 100 תלמידים
-    }
-
-    let instructors = Math.ceil(count / 20); // מדריך אחד לכל 20 תלמידים
-
-    return { medics, security, instructors };
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => {
+      const newData = {
+        ...prev,
+        [name]: value
+      };
+      
+      if (name === 'numberOfDays' && value) {
+        setShowLocationFields(true);
+      }
+      
+      return newData;
+    });
   };
 
-  const handleChange = (field) => (event) => {
-    const value = event?.target?.value ?? event;
-    const updatedFormData = { ...formData, [field]: value };
-    
-    if (field === 'studentsCount') {
-      const staffRequirements = calculateRequiredStaff(value);
-      updatedFormData.medicsCount = staffRequirements.medics;
-      updatedFormData.securityCount = staffRequirements.security;
-      updatedFormData.instructorsCount = staffRequirements.instructors;
-    }
-
-    setFormData(updatedFormData);
+  const handleLocationChange = (name, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
-  const handleSaveTrip = () => {
-    // בדיקות תיקוף
-    const requiredFields = [
-      'tripName', 
-      'description', 
-      'organizationType', 
-      'ageGroup', 
-      'studentsCount', 
-      'startDate', 
-      'endDate',
-      'startPoint',
-      'endPoint'
-    ];
-
-    const missingFields = requiredFields.filter(field => !formData[field]);
-
-    if (missingFields.length > 0) {
-      alert(`אנא מלא את השדות הבאים: ${missingFields.join(', ')}`);
-      return;
-    }
-
-    onSave(formData);
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    console.log('Submitting form data:', formData);
+    onSubmit(formData);
   };
 
   return (
-    <CacheProvider value={cacheRtl}>
-      <ThemeProvider theme={theme}>
+    <ThemeProvider theme={theme}>
+      <CacheProvider value={cacheRtl}>
         <Container maxWidth="md">
-          <Box sx={{ 
-            display: 'flex', 
-            flexDirection: 'column', 
-            gap: 2, 
-            mt: 2 
-          }}>
-            <Typography variant="h5" gutterBottom>
-              פרטי הטיול
+          <Box component="form" onSubmit={handleSubmit} sx={{ mt: 4 }}>
+            <Typography variant="h4" component="h1" gutterBottom align="right">
+              יצירת טיול חדש
             </Typography>
 
-            <TextField
-              label="שם הטיול"
-              value={formData.tripName}
-              onChange={handleChange('tripName')}
-              fullWidth
-              required
-            />
-
-            <TextField
-              label="תיאור הטיול"
-              value={formData.description}
-              onChange={handleChange('description')}
-              multiline
-              rows={4}
-              fullWidth
-              required
-            />
-
-            <Grid container spacing={2}>
-              <Grid item xs={6}>
-                <FormControl fullWidth required>
-                  <InputLabel>סוג הארגון</InputLabel>
-                  <Select
-                    value={formData.organizationType}
-                    onChange={handleChange('organizationType')}
-                    label="סוג הארגון"
-                  >
-                    <MenuItem value="school">בית ספר</MenuItem>
-                    <MenuItem value="youth">תנועת נוער</MenuItem>
-                    <MenuItem value="other">אחר</MenuItem>
-                  </Select>
-                </FormControl>
+            <Grid container spacing={3}>
+              <Grid item xs={12}>
+                <TextField
+                  required
+                  fullWidth
+                  name="tripName"
+                  label="שם הטיול"
+                  value={formData.tripName}
+                  onChange={handleInputChange}
+                />
               </Grid>
-              <Grid item xs={6}>
+
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  name="description"
+                  label="תיאור הטיול"
+                  multiline
+                  rows={4}
+                  value={formData.description}
+                  onChange={handleInputChange}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  required
+                  fullWidth
+                  name="startDate"
+                  label="תאריך התחלה"
+                  type="date"
+                  value={formData.startDate}
+                  onChange={handleInputChange}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  required
+                  fullWidth
+                  name="endDate"
+                  label="תאריך סיום"
+                  type="date"
+                  value={formData.endDate}
+                  onChange={handleInputChange}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+
+              <Grid item xs={12}>
+                <TextField
+                  required
+                  fullWidth
+                  name="numberOfDays"
+                  label="מספר ימים"
+                  type="number"
+                  value={formData.numberOfDays}
+                  onChange={handleInputChange}
+                  InputProps={{ inputProps: { min: 1 } }}
+                />
+              </Grid>
+
+              {showLocationFields && (
+                <>
+                  <Grid item xs={12} sm={6}>
+                    <Autocomplete
+                      fullWidth
+                      options={israelLocations}
+                      value={formData.startLocation}
+                      onChange={(event, newValue) => handleLocationChange('startLocation', newValue)}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          required
+                          label="מיקום התחלה"
+                          variant="outlined"
+                        />
+                      )}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Autocomplete
+                      fullWidth
+                      options={israelLocations}
+                      value={formData.endLocation}
+                      onChange={(event, newValue) => handleLocationChange('endLocation', newValue)}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          required
+                          label="מיקום סיום"
+                          variant="outlined"
+                        />
+                      )}
+                    />
+                  </Grid>
+                </>
+              )}
+
+              <Grid item xs={12} sm={6}>
                 <FormControl fullWidth required>
                   <InputLabel>קבוצת גיל</InputLabel>
                   <Select
-                    value={formData.ageGroup}
-                    onChange={handleChange('ageGroup')}
+                    name="grade"
+                    value={formData.grade}
+                    onChange={handleInputChange}
                     label="קבוצת גיל"
                   >
-                    <MenuItem value="elementary">יסודי</MenuItem>
-                    <MenuItem value="middle">חטיבת ביניים</MenuItem>
-                    <MenuItem value="high">תיכון</MenuItem>
-                    <MenuItem value="other">אחר</MenuItem>
+                    {gradeOptions.map((grade) => (
+                      <MenuItem key={grade} value={grade}>
+                        {grade}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth required>
+                  <InputLabel>סוג ארגון</InputLabel>
+                  <Select
+                    name="organizationType"
+                    value={formData.organizationType}
+                    onChange={handleInputChange}
+                    label="סוג ארגון"
+                  >
+                    {organizationTypes.map((type) => (
+                      <MenuItem key={type} value={type}>
+                        {type}
+                      </MenuItem>
+                    ))}
                   </Select>
                 </FormControl>
               </Grid>
             </Grid>
 
-            <Grid container spacing={2}>
-              <Grid item xs={4}>
-                <TextField
-                  label="מספר חניכים"
-                  type="number"
-                  value={formData.studentsCount}
-                  onChange={handleChange('studentsCount')}
-                  fullWidth
-                  required
-                />
-              </Grid>
-              <Grid item xs={4}>
-                <TextField
-                  label="מספר מדריכים"
-                  type="number"
-                  value={formData.instructorsCount}
-                  onChange={handleChange('instructorsCount')}
-                  fullWidth
-                  required
-                />
-              </Grid>
-              <Grid item xs={4}>
-                <TextField
-                  label="מספר ימים"
-                  type="number"
-                  value={formData.duration}
-                  onChange={handleChange('duration')}
-                  fullWidth
-                  required
-                />
-              </Grid>
-            </Grid>
-
-            <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={he}>
-              <Grid container spacing={2}>
-                <Grid item xs={6}>
-                  <DatePicker
-                    label="תאריך התחלה"
-                    value={formData.startDate}
-                    onChange={handleChange('startDate')}
-                    renderInput={(params) => <TextField {...params} fullWidth required />}
-                  />
-                </Grid>
-                <Grid item xs={6}>
-                  <DatePicker
-                    label="תאריך סיום"
-                    value={formData.endDate}
-                    onChange={handleChange('endDate')}
-                    renderInput={(params) => <TextField {...params} fullWidth required />}
-                  />
-                </Grid>
-              </Grid>
-            </LocalizationProvider>
-
-            <Grid container spacing={2}>
-              <Grid item xs={6}>
-                <TextField
-                  label="נקודת התחלה"
-                  value={formData.startPoint}
-                  onChange={handleChange('startPoint')}
-                  fullWidth
-                  required
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <TextField
-                  label="נקודת סיום"
-                  value={formData.endPoint}
-                  onChange={handleChange('endPoint')}
-                  fullWidth
-                  required
-                />
-              </Grid>
-            </Grid>
-
-            <Button 
-              variant="contained" 
-              color="primary" 
-              onClick={handleSaveTrip}
-              sx={{ mt: 2 }}
-            >
-              המשך
-            </Button>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 3 }}>
+              <Button 
+                variant="outlined" 
+                onClick={onBack}
+              >
+                {backButtonText}
+              </Button>
+              <Button 
+                variant="contained" 
+                type="submit"
+                endIcon={submitButtonIcon}
+              >
+                {submitButtonText}
+              </Button>
+            </Box>
           </Box>
         </Container>
-      </ThemeProvider>
-    </CacheProvider>
+      </CacheProvider>
+    </ThemeProvider>
   );
 };
 

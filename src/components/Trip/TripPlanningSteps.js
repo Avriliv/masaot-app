@@ -1,92 +1,109 @@
-import React, { useState, useEffect } from 'react';
-import { Box, Paper } from '@mui/material';
-import { makeStyles } from '@mui/styles';
+import React, { useState } from 'react';
+import {
+    Box,
+    Stepper,
+    Step,
+    StepLabel,
+    Button,
+    Typography,
+    Container
+} from '@mui/material';
 import BasicInfo from '../planning/BasicInfo';
 import MapPlanning from '../planning/MapPlanning';
-import Summary from '../planning/Summary';
+import TripSummary from '../planning/TripSummary';
+import { useTrip } from '../../context/TripContext';
+import { useTrips } from '../../context/TripsContext';
+import { useNavigate } from 'react-router-dom';
 
-const useStyles = makeStyles((theme) => ({
-    paper: {
-        width: '100%',
-        padding: theme.spacing(1.5),
-        borderRadius: theme.spacing(1),
-        backgroundColor: '#fff',
-        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)',
-        overflowX: 'hidden',
-        '& .MuiTextField-root': {
-            marginBottom: theme.spacing(1.5)
-        }
+const steps = [
+    {
+        label: 'פרטים בסיסיים',
+        description: 'הגדרת פרטי הטיול הבסיסיים',
+        component: BasicInfo
     },
-    buttonContainer: {
-        display: 'flex',
-        justifyContent: 'space-between',
-        marginTop: theme.spacing(2),
-        padding: theme.spacing(2),
-        width: '100%',
-        gap: theme.spacing(2),
-        '& .MuiButton-root': {
-            minWidth: '120px'
-        }
+    {
+        label: 'תכנון מסלול',
+        description: 'תכנון מסלול הטיול על המפה',
+        component: MapPlanning
     },
-    stepperContainer: {
-        width: '100%',
-        maxWidth: '100%',
-        margin: 0,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        minHeight: '100vh'
-    },
-    contentContainer: {
-        width: '100%',
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center'
+    {
+        label: 'סיכום',
+        description: 'סיכום פרטי הטיול',
+        component: TripSummary
     }
-}));
+];
 
 const TripPlanningSteps = () => {
     const [activeStep, setActiveStep] = useState(0);
-    const [tripData, setTripData] = useState({});
-    const classes = useStyles();
+    const { tripState } = useTrip();
+    const { addTrip } = useTrips();
+    const navigate = useNavigate();
 
-    const steps = [
-        { 
-            label: 'פרטי הטיול', 
-            component: BasicInfo,
-            dataKey: 'basicInfo',
-            description: 'הזן את פרטי הטיול הבסיסיים'
-        },
-        { 
-            label: 'תכנון מסלול', 
-            component: MapPlanning,
-            dataKey: 'route',
-            description: 'תכנן את מסלול הטיול על המפה'
-        },
-        { 
-            label: 'סיכום', 
-            component: Summary,
-            dataKey: 'summary',
-            description: 'סיכום פרטי הטיול'
+    const handleNext = () => {
+        if (activeStep < steps.length - 1) {
+            setActiveStep((prevStep) => prevStep + 1);
         }
-    ];
+    };
 
-    const CurrentStep = steps[activeStep].component;
+    const handleBack = () => {
+        if (activeStep > 0) {
+            setActiveStep((prevStep) => prevStep - 1);
+        }
+    };
+
+    const handleFinish = () => {
+        // מוסיף את הטיול החדש למערכת
+        addTrip({
+            id: Date.now(),
+            ...tripState,
+            status: 'planned',
+            createdAt: new Date().toISOString()
+        });
+        
+        navigate('/my-trips');
+    };
+
+    const CurrentStepComponent = steps[activeStep].component;
 
     return (
-        <Box className={classes.stepperContainer}>
-            <Box className={classes.contentContainer}>
-                <Paper className={classes.paper}>
-                    <CurrentStep 
-                        data={tripData}
-                        onUpdate={(newData) => setTripData(prev => ({ ...prev, ...newData }))}
-                        onNext={() => setActiveStep(prev => Math.min(prev + 1, steps.length - 1))}
-                        onBack={() => setActiveStep(prev => Math.max(prev - 1, 0))}
-                    />
-                </Paper>
+        <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+            <Stepper activeStep={activeStep} alternativeLabel>
+                {steps.map((step) => (
+                    <Step key={step.label}>
+                        <StepLabel>{step.label}</StepLabel>
+                    </Step>
+                ))}
+            </Stepper>
+
+            <Box sx={{ mt: 4 }}>
+                <CurrentStepComponent onSubmit={handleNext} />
+                
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4 }}>
+                    <Button
+                        variant="contained"
+                        disabled={activeStep === 0}
+                        onClick={handleBack}
+                    >
+                        חזור
+                    </Button>
+                    {activeStep < steps.length - 1 ? (
+                        <Button
+                            variant="contained"
+                            onClick={handleNext}
+                        >
+                            הבא
+                        </Button>
+                    ) : (
+                        <Button
+                            variant="contained"
+                            onClick={handleFinish}
+                        >
+                            סיים
+                        </Button>
+                    )}
+                </Box>
             </Box>
-        </Box>
+        </Container>
     );
 };
 

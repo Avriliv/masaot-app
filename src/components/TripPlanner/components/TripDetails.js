@@ -1,200 +1,185 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
-  Box,
-  TextField,
-  Grid,
-  MenuItem,
-  Typography,
-  FormControl,
-  InputLabel,
-  Select,
-  DatePicker,
-  InputAdornment,
-  Button,
+    Box,
+    TextField,
+    Grid,
+    MenuItem,
+    Typography,
+    FormControl,
+    InputLabel,
+    Select,
+    DatePicker,
+    InputAdornment,
+    Button,
+    Paper,
+    Alert,
+    Divider
 } from '@mui/material';
 import { useTrip } from '../../../context/TripContext';
+import SearchLocation from './SearchLocation';
+
+const gradeOptions = [
+    'כיתה א׳',
+    'כיתה ב׳',
+    'כיתה ג׳',
+    'כיתה ד׳',
+    'כיתה ה׳',
+    'כיתה ו׳',
+    'כיתה ז׳',
+    'כיתה ח׳',
+    'כיתה ט׳',
+    'כיתה י׳',
+    'כיתה י״א',
+    'כיתה י״ב'
+];
+
+const organizationTypes = [
+    'בית ספר',
+    'תנועת נוער',
+    'מכינה קדם צבאית',
+    'צבא',
+    'מועצה מקומית',
+    'אחר'
+];
 
 export default function TripDetails({ onNext }) {
-  const { tripState, updateBasicDetails } = useTrip();
-  const { basicDetails } = tripState;
+    const { tripState, updateTrip } = useTrip();
+    const { basicDetails } = tripState;
 
-  const handleChange = (event) => {
-    const { name, value } = event.target;
-    updateBasicDetails({ [name]: value });
-  };
-
-  const handleNext = () => {
-    if (basicDetails.tripName?.trim()) {
-      // שמירת המידע לפני המעבר
-      updateBasicDetails(basicDetails);
-      onNext();
-    }
-  };
-
-  const tripTypes = [
-    { value: 'nature', label: 'טיול טבע' },
-    { value: 'city', label: 'טיול עירוני' },
-    { value: 'mixed', label: 'טיול משולב' },
-    { value: 'overseas', label: 'טיול לחו"ל' },
-  ];
-
-  const ageGroups = [
-    { value: 'elementary', label: 'בית ספר יסודי' },
-    { value: 'middle', label: 'חטיבת ביניים' },
-    { value: 'high', label: 'תיכון' },
-    { value: 'youth', label: 'תנועת נוער' },
-    { value: 'adult', label: 'מבוגרים' },
-    { value: 'family', label: 'משפחות' },
-  ];
-
-  return (
-    <Box 
-      sx={{
-        width: '100%',
-        maxWidth: '500px',
-        mx: 'auto',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: { xs: 1, sm: 1.5 }
-      }}
-    >
-      <Grid 
-        container 
-        spacing={1}
-        alignItems="flex-start"
-      >
-        <Grid item xs={12}>
-          <TextField
-            fullWidth
-            required
-            label="שם הטיול"
-            name="tripName"
-            value={basicDetails.tripName || ''}
-            onChange={handleChange}
-            placeholder="הכנס שם לטיול"
-            size="small"
-            sx={{ 
-              '& .MuiInputLabel-root': {
-                fontSize: '0.85rem',
-                color: '#455a64'
-              },
-              '& .MuiInputBase-input': {
-                fontSize: '0.85rem'
-              }
-            }}
-          />
-        </Grid>
-
-        <Grid item xs={12} sm={6}>
-          <FormControl fullWidth size="small">
-            <InputLabel sx={{ fontSize: '0.85rem', color: '#455a64' }}>סוג טיול</InputLabel>
-            <Select
-              name="tripType"
-              value={basicDetails.tripType || ''}
-              onChange={handleChange}
-              sx={{ 
-                fontSize: '0.85rem',
-                '& .MuiSelect-select': {
-                  padding: '6px 14px'
-                }
-              }}
-            >
-              {tripTypes.map((type) => (
-                <MenuItem key={type.value} value={type.value} sx={{ fontSize: '0.85rem' }}>
-                  {type.label}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Grid>
-
-        <Grid item xs={12} sm={6}>
-          <FormControl fullWidth size="small">
-            <InputLabel sx={{ fontSize: '0.85rem', color: '#455a64' }}>קבוצת גיל</InputLabel>
-            <Select
-              name="ageGroup"
-              value={basicDetails.ageGroup || ''}
-              onChange={handleChange}
-              sx={{ 
-                fontSize: '0.85rem',
-                '& .MuiSelect-select': {
-                  padding: '6px 14px'
-                }
-              }}
-            >
-              {ageGroups.map((group) => (
-                <MenuItem key={group.value} value={group.value} sx={{ fontSize: '0.85rem' }}>
-                  {group.label}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Grid>
-
-        <Grid item xs={12}>
-          <TextField
-            fullWidth
-            label="מוסד/ארגון"
-            name="organization"
-            value={basicDetails.organization || ''}
-            onChange={handleChange}
-            size="small"
-            sx={{ 
-              '& .MuiInputLabel-root': {
-                fontSize: '0.85rem',
-                color: '#455a64'
-              },
-              '& .MuiInputBase-input': {
-                fontSize: '0.85rem'
-              }
-            }}
-          />
-        </Grid>
-
-        <Grid item xs={12} sm={6}>
-          <TextField
-            fullWidth
-            type="number"
-            label="מספר משתתפים"
-            name="participantsCount"
-            value={basicDetails.participantsCount || ''}
-            onChange={handleChange}
-            size="small"
-            sx={{ 
-              '& .MuiInputLabel-root': {
-                fontSize: '0.85rem',
-                color: '#455a64'
-              },
-              '& .MuiInputBase-input': {
-                fontSize: '0.85rem',
-                padding: '6px 14px'
-              }
-            }}
-          />
-        </Grid>
-      </Grid>
-
-      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1.5 }}>
-        <Button
-          variant="contained"
-          onClick={handleNext}
-          disabled={!basicDetails.tripName?.trim()}
-          sx={{
-            minWidth: 100,
-            fontSize: '0.85rem',
-            py: 0.5,
-            bgcolor: '#37474f',
-            '&:hover': {
-              bgcolor: '#263238'
-            },
-            '&:disabled': {
-              bgcolor: '#cfd8dc'
+    const handleStartPointSelect = (location) => {
+        console.log('Selected start point:', location);
+        updateTrip({
+            route: {
+                ...tripState.route,
+                startPoint: location
             }
-          }}
-        >
-          המשך
-        </Button>
-      </Box>
-    </Box>
-  );
+        });
+    };
+
+    const handleEndPointSelect = (location) => {
+        console.log('Selected end point:', location);
+        updateTrip({
+            route: {
+                ...tripState.route,
+                endPoint: location
+            }
+        });
+    };
+
+    const handleBasicDetailsChange = (field, value) => {
+        updateTrip({
+            basicDetails: {
+                ...basicDetails,
+                [field]: value
+            }
+        });
+    };
+
+    return (
+        <Box sx={{ p: 3 }}>
+            <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
+                <Typography variant="h6" gutterBottom>
+                    פרטים בסיסיים
+                </Typography>
+                
+                <Grid container spacing={3}>
+                    <Grid item xs={12} sm={6}>
+                        <FormControl fullWidth>
+                            <InputLabel>סוג הארגון</InputLabel>
+                            <Select
+                                value={basicDetails?.organizationType || ''}
+                                onChange={(e) => handleBasicDetailsChange('organizationType', e.target.value)}
+                            >
+                                {organizationTypes.map((type) => (
+                                    <MenuItem key={type} value={type}>
+                                        {type}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                    </Grid>
+
+                    <Grid item xs={12} sm={6}>
+                        <FormControl fullWidth>
+                            <InputLabel>כיתה</InputLabel>
+                            <Select
+                                value={basicDetails?.grade || ''}
+                                onChange={(e) => handleBasicDetailsChange('grade', e.target.value)}
+                            >
+                                {gradeOptions.map((grade) => (
+                                    <MenuItem key={grade} value={grade}>
+                                        {grade}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                    </Grid>
+
+                    <Grid item xs={12}>
+                        <TextField
+                            fullWidth
+                            label="מספר תלמידים"
+                            type="number"
+                            value={basicDetails?.numberOfStudents || ''}
+                            onChange={(e) => handleBasicDetailsChange('numberOfStudents', e.target.value)}
+                            InputProps={{
+                                inputProps: { min: 1 }
+                            }}
+                        />
+                    </Grid>
+                </Grid>
+            </Paper>
+
+            <Paper elevation={3} sx={{ p: 3 }}>
+                <Typography variant="h6" gutterBottom>
+                    פרטי המסלול
+                </Typography>
+                
+                <Grid container spacing={3}>
+                    <Grid item xs={12}>
+                        <Typography variant="subtitle1" gutterBottom>
+                            נקודת התחלה
+                        </Typography>
+                        <SearchLocation 
+                            onLocationSelect={handleStartPointSelect} 
+                            onSelectLocation={handleStartPointSelect} 
+                        />
+                        {tripState.route?.startPoint && (
+                            <Alert severity="success" sx={{ mt: 1 }}>
+                                נבחרה נקודת התחלה: {tripState.route.startPoint.name}
+                            </Alert>
+                        )}
+                    </Grid>
+
+                    <Grid item xs={12}>
+                        <Typography variant="subtitle1" gutterBottom>
+                            נקודת סיום
+                        </Typography>
+                        <SearchLocation 
+                            onLocationSelect={handleEndPointSelect} 
+                            onSelectLocation={handleEndPointSelect} 
+                        />
+                        {tripState.route?.endPoint && (
+                            <Alert severity="success" sx={{ mt: 1 }}>
+                                נבחרה נקודת סיום: {tripState.route.endPoint.name}
+                            </Alert>
+                        )}
+                    </Grid>
+
+                    <Grid item xs={12}>
+                        <TextField
+                            fullWidth
+                            label="מספר ימי טיול"
+                            type="number"
+                            value={basicDetails?.numberOfDays || ''}
+                            onChange={(e) => handleBasicDetailsChange('numberOfDays', e.target.value)}
+                            InputProps={{
+                                inputProps: { min: 1 }
+                            }}
+                        />
+                    </Grid>
+                </Grid>
+            </Paper>
+        </Box>
+    );
 }

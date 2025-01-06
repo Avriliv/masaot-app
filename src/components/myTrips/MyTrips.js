@@ -1,279 +1,560 @@
-import React, { useState } from 'react';
-import { Box, Card, Typography, IconButton, Container, Grid, Paper } from '@mui/material';
-import { motion, AnimatePresence } from 'framer-motion';
-import AddIcon from '@mui/icons-material/Add';
-import DescriptionIcon from '@mui/icons-material/Description';
-import ParticipantsList from '../students/ParticipantsList';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-
-const TripCard = ({ title, onAdd, hideAddIcon, isMainCard }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    whileHover={{ scale: 1.02 }}
-    transition={{ duration: 0.3 }}
-    onClick={onAdd}
-  >
-    <Card
-      sx={{
-        position: 'relative',
-        minHeight: isMainCard ? '200px' : '150px',  
-        width: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        cursor: 'pointer',
-        transition: 'transform 0.2s ease-in-out',
-        '&:hover': {
-          transform: 'scale(1.02)',
-          boxShadow: '0 8px 16px rgba(0,0,0,0.1)',
-        },
-      }}
-    >
-      <Typography variant="h5" component="div" sx={{ mb: 2 }}>
-        {title}
-      </Typography>
-      {!hideAddIcon && (
-        <IconButton
-          sx={{
-            position: 'absolute',
-            bottom: '16px',
-            right: '16px',
-            backgroundColor: '#4CAF50',
-            color: 'white',
-            '&:hover': {
-              backgroundColor: '#388E3C',
-            },
-          }}
-        >
-          <AddIcon />
-        </IconButton>
-      )}
-    </Card>
-  </motion.div>
-);
-
-const TripBag = ({ visible, itemCount, onBagClick }) => (
-  <motion.div
-    style={{
-      position: 'fixed',
-      bottom: -20,
-      left: '50%',
-      transform: 'translateX(-50%)',
-      zIndex: 1000,
-      cursor: 'pointer'
-    }}
-    onClick={onBagClick}
-  >
-    <motion.div
-      initial={{ scale: 0 }}
-      animate={{ scale: visible ? 1 : 0 }}
-      transition={{ 
-        type: "spring",
-        stiffness: 260,
-        damping: 20
-      }}
-      style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-      }}
-    >
-      <motion.div
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '-20px',
-          marginTop: '-30px'
-        }}
-      >
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '2px',
-            mb: 0,
-            position: 'relative',
-            top: '70px',
-            marginBottom: '-50px',
-            left: '-15px'
-          }}
-        >
-          <Typography 
-            variant="h4" 
-            sx={{ 
-              color: '#333',
-              fontFamily: 'Rubik, sans-serif',
-              fontWeight: 600,
-              textAlign: 'center',
-              textShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)'
-            }}
-          >
-            תיק טיול
-          </Typography>
-          <Box
-            sx={{
-              backgroundColor: '#388E3C',
-              color: 'white',
-              borderRadius: '50%',
-              width: '24px',
-              height: '24px',
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              fontSize: '0.875rem',
-              fontWeight: 'bold',
-              position: 'relative',
-              top: '-10px',
-              right: '-10px'
-            }}
-          >
-            {itemCount}
-          </Box>
-        </Box>
-
-        <Box
-          component="button"
-          sx={{
-            position: 'relative',
-            width: '400px',
-            height: '400px',
-            cursor: 'pointer',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            border: 'none',
-            background: 'none',
-            padding: 0,
-            '&:focus': {
-              outline: 'none'
-            },
-            '&:focus-visible': {
-              outline: 'none'
-            },
-            '&:active': {
-              outline: 'none'
-            },
-            '&:hover': {
-              outline: 'none'
-            }
-          }}
-        >
-          <img 
-            src="/trip-bag.png"
-            alt="תיק טיול"
-            draggable="false"
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'contain',
-              filter: 'drop-shadow(0px 6px 12px rgba(0, 0, 0, 0.25))',
-              outline: 'none',
-              WebkitTapHighlightColor: 'transparent',
-              WebkitUserSelect: 'none',
-              userSelect: 'none'
-            }}
-          />
-        </Box>
-      </motion.div>
-    </motion.div>
-  </motion.div>
-);
-
-const DocumentAnimation = ({ isAnimating }) => (
-  <motion.div
-    initial={{ opacity: 0, scale: 0.5 }}
-    animate={{ opacity: isAnimating ? 1 : 0, scale: isAnimating ? 1 : 0.5 }}
-    transition={{ duration: 0.3 }}
-    style={{
-      position: 'fixed',
-      top: '50%',
-      left: '50%',
-      transform: 'translate(-50%, -50%)',
-      zIndex: 1000,
-    }}
-  >
-    <DescriptionIcon sx={{ fontSize: 60, color: '#4CAF50' }} />
-  </motion.div>
-);
+import { useSelector, useDispatch } from 'react-redux';
+import { selectTrips, addTrip, updateTrip, setCurrentTrip } from '../../redux/slices/tripsSlice';
+import {
+    Container,
+    Typography,
+    Box,
+    Button,
+    IconButton,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    TextField,
+    InputAdornment,
+    Grid,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem,
+    Tooltip,
+    Autocomplete,
+    Alert,
+} from '@mui/material';
+import {
+    Add as AddIcon,
+    Search as SearchIcon,
+    Sort as SortIcon,
+    Clear as ClearIcon,
+} from '@mui/icons-material';
+import {
+    tripTemplates,
+    israelLocations,
+} from '../../data/tripTemplates';
+import TripCard from './TripCard';
+import BudgetDialog from '../budget/BudgetDialog';
+import GuidanceDialog from '../guidance/GuidanceDialog';
+import TripChecklist from '../checklist/TripChecklist';
+import ParentApprovalForm from '../forms/ParentApprovalForm';
 
 const MyTrips = () => {
-  const navigate = useNavigate();
-  const [showBag, setShowBag] = useState(true);
-  const [itemCount, setItemCount] = useState(0);
-  const [showDocAnimation, setShowDocAnimation] = useState(false);
-  const [selectedStudents, setSelectedStudents] = useState([]);
-  const [showParticipants, setShowParticipants] = useState(false);
+    const navigate = useNavigate();
+    const dispatch = useDispatch();
+    const trips = useSelector(selectTrips);
+    const [openTemplateDialog, setOpenTemplateDialog] = useState(false);
+    const [selectedTemplate, setSelectedTemplate] = useState(null);
+    const [selectedLocation, setSelectedLocation] = useState(null);
+    const [filterStatus, setFilterStatus] = useState('all');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [sortBy, setSortBy] = useState('date');
+    const [savedStatus, setSavedStatus] = useState('');
+    const [openApprovalDialog, setOpenApprovalDialog] = useState(false);
+    const [selectedTrip, setSelectedTrip] = useState(null);
+    const [approvalStatus, setApprovalStatus] = useState({});
+    const [openTasksDialog, setOpenTasksDialog] = useState(false);
+    const [selectedTripForTasks, setSelectedTripForTasks] = useState(null);
+    const [showReminders, setShowReminders] = useState(true);
+    const [openBudgetDialog, setOpenBudgetDialog] = useState(false);
+    const [selectedTripForBudget, setSelectedTripForBudget] = useState(null);
+    const [openGuidanceDialog, setOpenGuidanceDialog] = useState(false);
+    const [selectedTripForGuidance, setSelectedTripForGuidance] = useState(null);
+    const [openNewTripDialog, setOpenNewTripDialog] = useState(false);
+    const [openChecklist, setOpenChecklist] = useState(false);
+    const [selectedTripForChecklist, setSelectedTripForChecklist] = useState(null);
 
-  const handleAddItem = () => {
-    setItemCount(prev => prev + 1);
-    setShowDocAnimation(true);
-    setTimeout(() => setShowDocAnimation(false), 500);
-  };
+    useEffect(() => {
+        // טען סטטוס אישורים
+        const savedApprovals = JSON.parse(localStorage.getItem('approvals') || '{}');
+        setApprovalStatus(savedApprovals);
+    }, []);
 
-  const handleBagClick = () => {
-    navigate('/trip-bag');
-  };
+    const handleCreateFromTemplate = (template) => {
+        const newTrip = {
+            id: Date.now().toString(),
+            basicDetails: {
+                ...template.template,
+                tripName: `${template.name} - ${new Date().toLocaleDateString()}`,
+                startDate: '',
+                endDate: '',
+                status: 'draft',
+                location: '',
+                numStudents: 0,
+                numStaff: 0,
+                description: '',
+                ageGroup: '',
+                organizationType: ''
+            },
+            title: template.name,
+            status: 'draft',
+            participants: [],
+            logistics: template.template.logistics || {
+                transportation: [],
+                equipment: [],
+                food: [],
+            },
+            schedule: template.template.schedule || [],
+            budget: {
+                expenses: [],
+                income: [],
+            },
+            approvals: {
+                parentalApprovals: [],
+                schoolApprovals: [],
+                securityApprovals: []
+            },
+            notes: '',
+            lastModified: new Date().toISOString()
+        };
 
-  const handleStudentSelect = (student) => {
-    setSelectedStudents(prev => {
-      const isSelected = prev.some(s => s.id === student.id);
-      if (isSelected) {
-        return prev.filter(s => s.id !== student.id);
-      } else {
-        return [...prev, student];
-      }
-    });
-  };
+        dispatch(addTrip(newTrip));
+        setOpenTemplateDialog(false);
+        setSavedStatus('נשמר בהצלחה');
+        setTimeout(() => setSavedStatus(''), 3000);
+    };
 
-  return (
-    <Box sx={{ minHeight: '100vh', py: 4 }}>
-      <Container maxWidth="md">
-        <Grid container spacing={3}>
-          <Grid item xs={12}>
-            <TripCard
-              title="צור טיול חדש"
-              onAdd={() => setShowParticipants(true)}
-              isMainCard
-            />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TripCard
-              title="הטיולים שלי"
-              onAdd={() => navigate('/my-trips')}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TripCard
-              title="תבניות טיולים"
-              onAdd={() => navigate('/trip-templates')}
-            />
-          </Grid>
-        </Grid>
+    const handleTripClick = (trip) => {
+        dispatch(setCurrentTrip(trip));
+        navigate(`/trip/${trip.id}`);
+    };
 
-        {showParticipants && (
-          <ParticipantsList
-            open={showParticipants}
-            onClose={() => setShowParticipants(false)}
-            selectedStudents={selectedStudents}
-            onStudentSelect={handleStudentSelect}
-          />
-        )}
-      </Container>
+    const handleUpdateTrip = (updatedTrip) => {
+        dispatch(updateTrip(updatedTrip));
+    };
 
-      <TripBag
-        visible={showBag}
-        itemCount={itemCount}
-        onBagClick={handleBagClick}
-      />
+    const handleDuplicateTrip = (tripToDuplicate) => {
+        const newTrip = {
+            ...tripToDuplicate,
+            id: Date.now().toString(),
+            basicDetails: {
+                ...tripToDuplicate.basicDetails,
+                tripName: `${tripToDuplicate.basicDetails.tripName} - עותק`,
+                status: 'draft',
+            },
+            status: 'draft',
+            lastModified: new Date().toISOString(),
+        };
 
-      <DocumentAnimation isAnimating={showDocAnimation} />
-    </Box>
-  );
+        dispatch(addTrip(newTrip));
+        setSavedStatus('הטיול שוכפל בהצלחה');
+        setTimeout(() => setSavedStatus(''), 3000);
+    };
+
+    const handleDeleteTrip = (tripId) => {
+        // dispatch(removeTrip(tripId));
+        setSavedStatus('הטיול נמחק בהצלחה');
+        setTimeout(() => setSavedStatus(''), 3000);
+    };
+
+    const getCompletionPercentage = (trip) => {
+        const sections = ['basicDetails', 'participants', 'logistics', 'schedule', 'budget', 'approvals'];
+        const completedSections = sections.filter((section) => {
+            if (section === 'basicDetails') {
+                const requiredFields = ['tripName', 'startDate', 'endDate', 'numStudents', 'numStaff', 'ageGroup', 'organizationType'];
+                return requiredFields.every((field) => trip.basicDetails[field]);
+            }
+            if (Array.isArray(trip[section])) {
+                return trip[section].length > 0;
+            }
+            if (typeof trip[section] === 'object') {
+                return Object.values(trip[section]).some((value) =>
+                    Array.isArray(value) ? value.length > 0 : Boolean(value)
+                );
+            }
+            return false;
+        });
+        return (completedSections.length / sections.length) * 100;
+    };
+
+    const handleOpenApprovalForm = (trip) => {
+        setSelectedTrip(trip);
+        setOpenApprovalDialog(true);
+    };
+
+    const handleSendApproval = () => {
+        // שמור את סטטוס האישור
+        const newApprovalStatus = {
+            ...approvalStatus,
+            [selectedTrip.id]: {
+                sent: true,
+                date: new Date().toISOString(),
+                status: 'pending',
+            },
+        };
+        setApprovalStatus(newApprovalStatus);
+        localStorage.setItem('approvals', JSON.stringify(newApprovalStatus));
+        // כאן נוסיף בהמשך שליחת מייל עם הטופס
+        console.log('Sending approval form via email');
+        setOpenApprovalDialog(false);
+    };
+
+    const handleShareApproval = () => {
+        // שמור את סטטוס האישור
+        const newApprovalStatus = {
+            ...approvalStatus,
+            [selectedTrip.id]: {
+                sent: true,
+                date: new Date().toISOString(),
+                status: 'pending',
+            },
+        };
+        setApprovalStatus(newApprovalStatus);
+        localStorage.setItem('approvals', JSON.stringify(newApprovalStatus));
+        // כאן נוסיף בהמשך יצירת קישור לשיתוף
+        console.log('Sharing approval form link');
+        setOpenApprovalDialog(false);
+    };
+
+    const getApprovalStatus = (tripId) => {
+        const status = approvalStatus[tripId];
+        if (!status) return 'לא נשלח';
+        if (status.status === 'approved') return 'אושר';
+        if (status.status === 'pending') return 'ממתין לאישור';
+        return 'לא נשלח';
+    };
+
+    const handleOpenBudgetDialog = (trip) => {
+        setSelectedTripForBudget(trip);
+        setOpenBudgetDialog(true);
+    };
+
+    const handleOpenGuidance = (trip) => {
+        setSelectedTripForGuidance(trip);
+        setOpenGuidanceDialog(true);
+    };
+
+    const handleOpenChecklist = (trip) => {
+        setSelectedTripForChecklist(trip);
+        setOpenChecklist(true);
+    };
+
+    const getTripTasks = (trip) => {
+        const defaultTasks = [
+            { id: 'participants', title: 'רשימת משתתפים', status: 'pending', icon: null },
+            { id: 'approvals', title: 'אישורי הורים', status: 'pending', icon: null },
+            { id: 'budget', title: 'תקציב', status: 'pending', icon: null },
+            { id: 'equipment', title: 'ציוד', status: 'pending', icon: null },
+            { id: 'transportation', title: 'הסעות', status: 'pending', icon: null },
+        ];
+
+        return trip.tasks || defaultTasks;
+    };
+
+    const getStatusText = (status) => {
+        switch (status) {
+            case 'draft':
+                return 'טיוטה';
+            case 'pending':
+                return 'ממתין לאישור';
+            case 'approved':
+                return 'מאושר';
+            case 'completed':
+                return 'הושלם';
+            default:
+                return status;
+        }
+    };
+
+    const getStatusColor = (status) => {
+        switch (status) {
+            case 'draft':
+                return 'default';
+            case 'pending':
+                return 'warning';
+            case 'approved':
+                return 'success';
+            case 'completed':
+                return 'primary';
+            default:
+                return 'default';
+        }
+    };
+
+    const filteredAndSortedTrips = trips
+        .filter((trip) => {
+            if (filterStatus !== 'all' && trip.status !== filterStatus) return false;
+            if (searchQuery) {
+                const searchLower = searchQuery.toLowerCase();
+                return (
+                    trip.basicDetails.tripName.toLowerCase().includes(searchLower) ||
+                    (trip.basicDetails.description &&
+                        trip.basicDetails.description.toLowerCase().includes(searchLower)) ||
+                    (trip.basicDetails.location &&
+                        trip.basicDetails.location.toLowerCase().includes(searchLower))
+                );
+            }
+            return true;
+        })
+        .sort((a, b) => {
+            switch (sortBy) {
+                case 'date':
+                    return new Date(b.lastModified) - new Date(a.lastModified);
+                case 'name':
+                    return a.basicDetails.tripName.localeCompare(b.basicDetails.tripName);
+                case 'status':
+                    return a.status.localeCompare(b.status);
+                default:
+                    return 0;
+            }
+        });
+
+    return (
+        <Container maxWidth="lg" sx={{ py: 4 }}>
+            <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <Typography variant="h4" component="h1" gutterBottom>
+                    הטיולים שלי
+                </Typography>
+                <Box>
+                    <Button
+                        variant="contained"
+                        startIcon={<AddIcon />}
+                        onClick={() => setOpenTemplateDialog(true)}
+                        sx={{ ml: 2 }}
+                    >
+                        טיול חדש
+                    </Button>
+                </Box>
+            </Box>
+
+            {/* סרגל חיפוש וסינון */}
+            <Box sx={{ mb: 4, display: 'flex', gap: 2, alignItems: 'center' }}>
+                <TextField
+                    placeholder="חיפוש טיול..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    size="small"
+                    InputProps={{
+                        startAdornment: (
+                            <InputAdornment position="start">
+                                <SearchIcon />
+                            </InputAdornment>
+                        ),
+                        endAdornment: searchQuery && (
+                            <InputAdornment position="end">
+                                <IconButton size="small" onClick={() => setSearchQuery('')}>
+                                    <ClearIcon />
+                                </IconButton>
+                            </InputAdornment>
+                        ),
+                    }}
+                    sx={{ flexGrow: 1 }}
+                />
+
+                <FormControl size="small" sx={{ minWidth: 120 }}>
+                    <InputLabel>מיין לפי</InputLabel>
+                    <Select
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value)}
+                        label="מיין לפי"
+                        startAdornment={<SortIcon sx={{ mr: 1 }} />}
+                    >
+                        <MenuItem value="date">תאריך עדכון</MenuItem>
+                        <MenuItem value="name">שם</MenuItem>
+                        <MenuItem value="status">סטטוס</MenuItem>
+                    </Select>
+                </FormControl>
+
+                <FormControl size="small" sx={{ minWidth: 120 }}>
+                    <InputLabel>סטטוס</InputLabel>
+                    <Select
+                        value={filterStatus}
+                        onChange={(e) => setFilterStatus(e.target.value)}
+                        label="סטטוס"
+                    >
+                        <MenuItem value="all">הכל</MenuItem>
+                        <MenuItem value="draft">טיוטה</MenuItem>
+                        <MenuItem value="pending">ממתין לאישור</MenuItem>
+                        <MenuItem value="approved">מאושר</MenuItem>
+                        <MenuItem value="completed">הושלם</MenuItem>
+                    </Select>
+                </FormControl>
+            </Box>
+
+            {/* הודעת סטטוס */}
+            {savedStatus && (
+                <Alert severity="success" sx={{ mb: 2 }}>
+                    {savedStatus}
+                </Alert>
+            )}
+
+            {/* רשימת הטיולים */}
+            <Grid container spacing={3}>
+                {filteredAndSortedTrips.map((trip) => (
+                    <Grid item xs={12} sm={6} md={4} key={trip.id}>
+                        <TripCard
+                            trip={trip}
+                            getTripTasks={getTripTasks}
+                            getStatusText={getStatusText}
+                            getStatusColor={getStatusColor}
+                            showReminders={showReminders}
+                            setSelectedTripForTasks={setSelectedTripForTasks}
+                            setOpenTasksDialog={setOpenTasksDialog}
+                            navigate={navigate}
+                            handleDuplicateTrip={handleDuplicateTrip}
+                            handleDeleteTrip={handleDeleteTrip}
+                            handleOpenApprovalForm={handleOpenApprovalForm}
+                            handleOpenBudgetDialog={handleOpenBudgetDialog}
+                            handleOpenGuidance={handleOpenGuidance}
+                            handleOpenChecklist={handleOpenChecklist}
+                            onEdit={(trip) => navigate(`/plan-trip/${trip.id}`)}
+                            onDelete={handleDeleteTrip}
+                            handleUpdateTrip={(updatedTrip) => {
+                                handleUpdateTrip(updatedTrip);
+                            }}
+                        />
+                    </Grid>
+                ))}
+            </Grid>
+
+            {/* דיאלוג יצירת טיול חדש */}
+            <Dialog
+                open={openTemplateDialog}
+                onClose={() => setOpenTemplateDialog(false)}
+                maxWidth="sm"
+                fullWidth
+            >
+                <DialogTitle>יצירת טיול חדש</DialogTitle>
+                <DialogContent>
+                    <Box sx={{ mt: 2 }}>
+                        <Autocomplete
+                            value={selectedTemplate}
+                            onChange={(event, newValue) => setSelectedTemplate(newValue)}
+                            options={tripTemplates}
+                            getOptionLabel={(option) => option.name}
+                            renderInput={(params) => (
+                                <TextField
+                                    {...params}
+                                    label="בחר תבנית טיול"
+                                    variant="outlined"
+                                />
+                            )}
+                            sx={{ mb: 2 }}
+                        />
+
+                        <Autocomplete
+                            value={selectedLocation}
+                            onChange={(event, newValue) => setSelectedLocation(newValue)}
+                            options={israelLocations}
+                            getOptionLabel={(option) => option.name}
+                            renderInput={(params) => (
+                                <TextField
+                                    {...params}
+                                    label="בחר מיקום"
+                                    variant="outlined"
+                                />
+                            )}
+                        />
+                    </Box>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setOpenTemplateDialog(false)}>ביטול</Button>
+                    <Button
+                        onClick={() => handleCreateFromTemplate(selectedTemplate)}
+                        variant="contained"
+                        disabled={!selectedTemplate}
+                    >
+                        צור טיול
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Task Dialog */}
+            <Dialog
+                open={openTasksDialog}
+                onClose={() => setOpenTasksDialog(false)}
+                maxWidth="md"
+                fullWidth
+            >
+                <DialogTitle>משימות לטיול</DialogTitle>
+                <DialogContent>
+                    {selectedTripForTasks && (
+                        <Box>
+                            {getTripTasks(selectedTripForTasks).map((task) => (
+                                <Box key={task.id} sx={{ mb: 2 }}>
+                                    <Typography variant="subtitle1">{task.title}</Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                        סטטוס: {task.status === 'completed' ? 'הושלם' : 'ממתין'}
+                                    </Typography>
+                                </Box>
+                            ))}
+                        </Box>
+                    )}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setOpenTasksDialog(false)}>סגור</Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Budget Dialog */}
+            <Dialog
+                open={openBudgetDialog}
+                onClose={() => setOpenBudgetDialog(false)}
+                maxWidth="md"
+                fullWidth
+            >
+                <DialogContent>
+                    <BudgetDialog
+                        trip={selectedTripForBudget}
+                        onUpdate={(updatedTrip) => {
+                            handleUpdateTrip(updatedTrip);
+                        }}
+                        onClose={() => setOpenBudgetDialog(false)}
+                    />
+                </DialogContent>
+            </Dialog>
+
+            {/* Guidance Dialog */}
+            <Dialog
+                open={openGuidanceDialog}
+                onClose={() => setOpenGuidanceDialog(false)}
+                maxWidth="md"
+                fullWidth
+            >
+                <DialogContent>
+                    <GuidanceDialog
+                        trip={selectedTripForGuidance}
+                        onClose={() => setOpenGuidanceDialog(false)}
+                    />
+                </DialogContent>
+            </Dialog>
+
+            {/* Checklist Dialog */}
+            <Dialog
+                open={openChecklist}
+                onClose={() => setOpenChecklist(false)}
+                maxWidth="md"
+                fullWidth
+            >
+                <DialogContent>
+                    <TripChecklist
+                        trip={selectedTripForChecklist}
+                        onUpdate={(updatedTrip) => {
+                            handleUpdateTrip(updatedTrip);
+                        }}
+                    />
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setOpenChecklist(false)}>סגור</Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Parent Approval Dialog */}
+            <Dialog
+                open={openApprovalDialog}
+                onClose={() => setOpenApprovalDialog(false)}
+                maxWidth="md"
+                fullWidth
+            >
+                <DialogContent>
+                    <ParentApprovalForm
+                        trip={selectedTrip}
+                        onClose={() => setOpenApprovalDialog(false)}
+                    />
+                </DialogContent>
+            </Dialog>
+        </Container>
+    );
 };
 
 export default MyTrips;

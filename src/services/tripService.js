@@ -171,6 +171,147 @@ const tripService = {
                 equipment: trip.logistics.equipment
             }
         };
+    },
+
+    // פונקציות חדשות לתמיכה בפיצ'רים המורחבים
+
+    // עדכון סטטוס טיול
+    updateTripStatus(tripId, newStatus) {
+        try {
+            // TODO: Implement status update logic
+            return { success: true };
+        } catch (error) {
+            console.error('Error updating trip status:', error);
+            return { success: false, error };
+        }
+    },
+
+    // קבלת סטטיסטיקות טיולים
+    getTripStatistics() {
+        try {
+            const trips = this.getAllTrips();
+            return {
+                totalTrips: trips.length,
+                averageCost: trips.reduce((acc, trip) => acc + trip.basicInfo.cost, 0) / trips.length,
+                upcomingTrips: trips.filter(trip => new Date(trip.basicInfo.startDate) > new Date()).length,
+                completedTrips: trips.filter(trip => trip.status === 'completed').length,
+                totalParticipants: trips.reduce((acc, trip) => acc + trip.basicInfo.participantsCount, 0)
+            };
+        } catch (error) {
+            console.error('Error getting trip statistics:', error);
+            return null;
+        }
+    },
+
+    // חיפוש טיולים
+    searchTrips(query, filters = {}) {
+        try {
+            let trips = this.getAllTrips();
+            
+            // פילטור לפי טקסט חופשי
+            if (query) {
+                const searchTerm = query.toLowerCase();
+                trips = trips.filter(trip => 
+                    trip.basicInfo.name.toLowerCase().includes(searchTerm) ||
+                    trip.basicInfo.organization.toLowerCase().includes(searchTerm) ||
+                    trip.route.trails.some(trail => trail.name.toLowerCase().includes(searchTerm))
+                );
+            }
+
+            // פילטור לפי סטטוס
+            if (filters.status) {
+                trips = trips.filter(trip => trip.status === filters.status);
+            }
+
+            // פילטור לפי תאריך
+            if (filters.startDate) {
+                trips = trips.filter(trip => new Date(trip.basicInfo.startDate) >= new Date(filters.startDate));
+            }
+            if (filters.endDate) {
+                trips = trips.filter(trip => new Date(trip.basicInfo.endDate) <= new Date(filters.endDate));
+            }
+
+            // מיון
+            if (filters.sortBy) {
+                trips.sort((a, b) => {
+                    switch (filters.sortBy) {
+                        case 'date':
+                            return new Date(b.basicInfo.startDate) - new Date(a.basicInfo.startDate);
+                        case 'name':
+                            return a.basicInfo.name.localeCompare(b.basicInfo.name);
+                        case 'participants':
+                            return b.basicInfo.participantsCount - a.basicInfo.participantsCount;
+                        default:
+                            return 0;
+                    }
+                });
+            }
+
+            return trips;
+        } catch (error) {
+            console.error('Error searching trips:', error);
+            return [];
+        }
+    },
+
+    // יצירת העתק של טיול קיים
+    duplicateTrip(tripId) {
+        try {
+            const originalTrip = this.loadTrip(tripId);
+            if (!originalTrip) {
+                throw new Error('Trip not found');
+            }
+
+            const newTrip = {
+                ...originalTrip,
+                basicInfo: {
+                    ...originalTrip.basicInfo,
+                    id: null, // יצירת ID חדש
+                    name: `העתק של ${originalTrip.basicInfo.name}`,
+                    startDate: null,
+                    endDate: null
+                },
+                status: 'draft'
+            };
+
+            return this.saveTrip(newTrip);
+        } catch (error) {
+            console.error('Error duplicating trip:', error);
+            return null;
+        }
+    },
+
+    // קבלת תחזית מזג אוויר לטיול
+    async getWeatherForecast(tripId) {
+        try {
+            const trip = this.loadTrip(tripId);
+            if (!trip || !trip.route.points.length) {
+                throw new Error('Trip or route points not found');
+            }
+
+            // נקודה מרכזית במסלול לתחזית
+            const centerPoint = trip.route.points[Math.floor(trip.route.points.length / 2)];
+            
+            // TODO: Implement weather API call
+            const forecast = {
+                daily: [
+                    {
+                        date: trip.basicInfo.startDate,
+                        tempMax: 25,
+                        tempMin: 15,
+                        humidity: 65,
+                        precipitation: 0,
+                        description: 'בהיר'
+                    }
+                    // ... יותר ימים
+                ]
+            };
+
+            return forecast;
+        } catch (error) {
+            console.error('Error getting weather forecast:', error);
+            return null;
+        }
     }
 };
 

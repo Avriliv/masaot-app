@@ -13,6 +13,11 @@ const initialState = {
     participantsCount: 0,
     ageGroup: '',
     organization: '',
+    description: '',
+    numDays: '',
+    numStudents: '',
+    numStaff: '',
+    organizationType: ''
   },
   route: {
     startPoint: null,
@@ -20,6 +25,12 @@ const initialState = {
     checkpoints: [],
     selectedTrails: [],
     dailySegments: [], // מקטעים יומיים
+  },
+  logistics: {
+    transportation: '',
+    accommodation: '',
+    food: '',
+    equipment: ''
   },
   points: [],
   timeline: [],
@@ -37,6 +48,7 @@ const initialState = {
   status: 'draft',
   lastSaved: null,
   lastModified: null,
+  mapDetails: {}
 };
 
 function tripReducer(state, action) {
@@ -44,141 +56,296 @@ function tripReducer(state, action) {
   
   switch (action.type) {
     case 'INIT_TRIP':
-      return { ...initialState, ...action.payload, id: action.payload.id };
+      return {
+        ...initialState,
+        ...action.payload,
+        lastModified: new Date().toISOString()
+      };
       
     case 'UPDATE_BASIC_DETAILS':
       newState = {
         ...state,
-        basicDetails: { ...state.basicDetails, ...action.payload },
-        version: state.version + 1,
+        basicDetails: {
+          ...state.basicDetails,
+          ...action.payload
+        },
         lastModified: new Date().toISOString(),
+        version: state.version + 1
       };
-      break;
-      
+      return newState;
+
+    case 'UPDATE_MAP_DETAILS':
+      newState = {
+        ...state,
+        mapDetails: {
+          ...state.mapDetails,
+          ...action.payload
+        },
+        lastModified: new Date().toISOString(),
+        version: state.version + 1
+      };
+      return newState;
+
     case 'UPDATE_ROUTE':
       newState = {
         ...state,
-        route: { ...state.route, ...action.payload },
-        version: state.version + 1,
+        route: {
+          ...state.route,
+          ...action.payload
+        },
         lastModified: new Date().toISOString(),
+        version: state.version + 1
       };
-      break;
-      
+      return newState;
+
     case 'UPDATE_POINTS':
+      // אם אין שינוי בנקודות, לא נעדכן את המצב
+      if (JSON.stringify(state.points) === JSON.stringify(action.payload)) {
+        return state;
+      }
       newState = {
         ...state,
         points: action.payload,
-        version: state.version + 1,
         lastModified: new Date().toISOString(),
+        version: state.version + 1
       };
-      break;
-      
+      return newState;
+
     case 'UPDATE_TIMELINE':
       newState = {
         ...state,
         timeline: action.payload,
-        version: state.version + 1,
         lastModified: new Date().toISOString(),
+        version: state.version + 1
       };
-      break;
-      
+      return newState;
+
     case 'UPDATE_APPROVALS':
       newState = {
         ...state,
-        approvals: { ...state.approvals, ...action.payload },
-        version: state.version + 1,
+        approvals: {
+          ...state.approvals,
+          ...action.payload
+        },
         lastModified: new Date().toISOString(),
+        version: state.version + 1
       };
-      break;
-      
+      return newState;
+
     case 'UPDATE_BUDGET':
       newState = {
         ...state,
-        budget: { ...state.budget, ...action.payload },
-        version: state.version + 1,
+        budget: {
+          ...state.budget,
+          ...action.payload
+        },
         lastModified: new Date().toISOString(),
+        version: state.version + 1
       };
-      break;
-      
-    case 'UPDATE_STATUS':
+      return newState;
+
+    case 'UPDATE_TRIP':
       newState = {
         ...state,
-        status: action.payload,
-        version: state.version + 1,
+        ...action.payload,
         lastModified: new Date().toISOString(),
+        version: state.version + 1
       };
-      break;
-      
-    case 'SET_LAST_SAVED':
-      newState = {
+      return newState;
+
+    case 'SAVE_TO_MY_TRIPS':
+      // שמירת הטיול ברשימת הטיולים
+      const savedTrips = JSON.parse(localStorage.getItem('myTrips') || '[]');
+      const tripToSave = {
         ...state,
-        lastSaved: action.payload,
+        id: state.id || Date.now().toString(),
+        status: 'draft',
+        lastModified: new Date().toISOString()
       };
-      break;
       
+      // בדיקה אם הטיול כבר קיים ועדכון אם כן
+      const tripIndex = savedTrips.findIndex(t => t.id === tripToSave.id);
+      if (tripIndex !== -1) {
+        savedTrips[tripIndex] = tripToSave;
+      } else {
+        savedTrips.push(tripToSave);
+      }
+      
+      localStorage.setItem('myTrips', JSON.stringify(savedTrips));
+      return tripToSave;
+
     default:
       return state;
   }
-  
-  return newState;
 }
 
 export function TripProvider({ children }) {
-  const [state, dispatch] = useReducer(tripReducer, initialState);
+  const [tripState, dispatch] = useReducer(tripReducer, initialState);
 
-  // שמירה אוטומטית בכל שינוי
   useEffect(() => {
-    if (state.id && state.lastModified && (!state.lastSaved || state.lastModified > state.lastSaved)) {
-      autoSaveService.saveChanges(state.id, state);
-      dispatch({ type: 'SET_LAST_SAVED', payload: new Date().toISOString() });
-    }
-  }, [state.lastModified]);
-
-  // טעינת נתונים בהתחלה
-  useEffect(() => {
-    if (state.id) {
-      const loadData = async () => {
-        // ניסיון לטעון מהשרת
-        const serverData = await autoSaveService.loadFromServer(state.id);
-        // טעינה מקומית
-        const localData = autoSaveService.loadFromLocalStorage(state.id);
+    const loadTrip = async () => {
+      try {
+        // נטען את כל הטיולים מהלוקל סטורג'
+        const trips = JSON.parse(localStorage.getItem('trips') || '[]');
         
-        // בחירת הגרסה העדכנית ביותר
-        if (serverData && localData) {
-          const useServerData = new Date(serverData.lastModified) > new Date(localData.lastModified);
-          dispatch({ type: 'INIT_TRIP', payload: useServerData ? serverData : localData });
-        } else if (serverData) {
-          dispatch({ type: 'INIT_TRIP', payload: serverData });
-        } else if (localData) {
-          dispatch({ type: 'INIT_TRIP', payload: localData });
+        // נבדוק אם יש ID בכתובת ה-URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const tripId = window.location.pathname.split('/trip/')[1];
+        
+        if (tripId) {
+          // אם יש ID בכתובת, נחפש את הטיול המתאים
+          const savedTrip = trips.find(t => t.id === tripId);
+          if (savedTrip) {
+            dispatch({ type: 'INIT_TRIP', payload: savedTrip });
+            return;
+          }
         }
-      };
-      
-      loadData();
-    }
-  }, [state.id]);
+        
+        // אם אין ID או לא מצאנו את הטיול, ננסה לטעון מה-AutoSave
+        const savedTrip = await autoSaveService.loadTrip();
+        if (savedTrip) {
+          dispatch({ type: 'INIT_TRIP', payload: savedTrip });
+        } else {
+          // אם אין טיול שמור, ניצור טיול חדש
+          const newTrip = {
+            ...initialState,
+            id: Date.now().toString(),
+            lastModified: new Date().toISOString()
+          };
+          dispatch({ type: 'INIT_TRIP', payload: newTrip });
+        }
+      } catch (error) {
+        console.error('Failed to load trip:', error);
+        // במקרה של שגיאה, ניצור טיול חדש
+        const newTrip = {
+          ...initialState,
+          id: Date.now().toString(),
+          lastModified: new Date().toISOString()
+        };
+        dispatch({ type: 'INIT_TRIP', payload: newTrip });
+      }
+    };
+    loadTrip();
+  }, []);
 
-  const value = {
-    tripState: state,
-    updateBasicDetails: (details) =>
-      dispatch({ type: 'UPDATE_BASIC_DETAILS', payload: details }),
-    updateRoute: (routeDetails) =>
-      dispatch({ type: 'UPDATE_ROUTE', payload: routeDetails }),
-    updateTripPoints: (points) =>
-      dispatch({ type: 'UPDATE_POINTS', payload: points }),
-    updateTimeline: (timeline) =>
-      dispatch({ type: 'UPDATE_TIMELINE', payload: timeline }),
-    updateApprovals: (approvals) =>
-      dispatch({ type: 'UPDATE_APPROVALS', payload: approvals }),
-    updateBudget: (budget) =>
-      dispatch({ type: 'UPDATE_BUDGET', payload: budget }),
-    updateStatus: (status) =>
-      dispatch({ type: 'UPDATE_STATUS', payload: status }),
-    initTrip: (tripData) =>
-      dispatch({ type: 'INIT_TRIP', payload: tripData }),
+  useEffect(() => {
+    if (tripState.lastModified && tripState.id) {
+      autoSaveService.saveTrip(tripState);
+    }
+  }, [tripState.version]);
+
+  const updateBasicDetails = (details) => {
+    dispatch({ type: 'UPDATE_BASIC_DETAILS', payload: details });
   };
 
-  return <TripContext.Provider value={value}>{children}</TripContext.Provider>;
+  const updateMapDetails = (details) => {
+    dispatch({ type: 'UPDATE_MAP_DETAILS', payload: details });
+  };
+
+  const updateRoute = (routeData) => {
+    // שמירת נתוני המסלול בלוקל סטורג'
+    const updatedRoute = {
+      ...tripState.route,
+      ...routeData,
+      lastModified: new Date().toISOString()
+    };
+    
+    dispatch({ 
+      type: 'UPDATE_ROUTE',
+      payload: updatedRoute
+    });
+
+    // שמירת הטיול המעודכן בלוקל סטורג'
+    const trips = JSON.parse(localStorage.getItem('trips') || '[]');
+    const tripIndex = trips.findIndex(t => t.id === tripState.id);
+    
+    if (tripIndex !== -1) {
+      trips[tripIndex] = {
+        ...trips[tripIndex],
+        route: updatedRoute
+      };
+    } else {
+      trips.push({
+        ...tripState,
+        route: updatedRoute
+      });
+    }
+    
+    localStorage.setItem('trips', JSON.stringify(trips));
+  };
+
+  const updatePoints = (points) => {
+    dispatch({ type: 'UPDATE_POINTS', payload: points });
+  };
+
+  const updateTimeline = (timeline) => {
+    dispatch({ type: 'UPDATE_TIMELINE', payload: timeline });
+  };
+
+  const updateApprovals = (approvals) => {
+    dispatch({ type: 'UPDATE_APPROVALS', payload: approvals });
+  };
+
+  const updateBudget = (budget) => {
+    dispatch({ type: 'UPDATE_BUDGET', payload: budget });
+  };
+
+  const updateTrip = (trip) => {
+    dispatch({ type: 'UPDATE_TRIP', payload: trip });
+  };
+
+  const saveToMyTrips = () => {
+    // יצירת אובייקט טיול מעודכן עם סטטוס טיוטה ותאריך עדכון אחרון
+    const updatedTrip = {
+      ...tripState,
+      status: 'draft',
+      lastModified: new Date().toISOString()
+    };
+
+    // קבלת רשימת הטיולים הקיימת מה-localStorage
+    const existingTrips = JSON.parse(localStorage.getItem('trips') || '[]');
+    
+    // הוספת הטיול החדש לרשימה
+    const newTrips = [...existingTrips, updatedTrip];
+    
+    // שמירת הרשימה המעודכנת ב-localStorage
+    localStorage.setItem('trips', JSON.stringify(newTrips));
+    
+    // עדכון מצב הטיול בקונטקסט
+    updateTrip(updatedTrip);
+  };
+
+  const saveTripToMyTrips = (tripData) => {
+    const myTrips = JSON.parse(localStorage.getItem('myTrips') || '[]');
+    const updatedTrip = {
+      ...tripData,
+      id: Date.now().toString(),
+      createdAt: new Date().toISOString(),
+      status: 'completed'
+    };
+    myTrips.push(updatedTrip);
+    localStorage.setItem('myTrips', JSON.stringify(myTrips));
+  };
+
+  const value = {
+    tripState,
+    updateBasicDetails,
+    updateMapDetails,
+    updateRoute,
+    updatePoints,
+    updateTimeline,
+    updateApprovals,
+    updateBudget,
+    updateTrip,
+    saveToMyTrips,
+    saveTripToMyTrips
+  };
+
+  return (
+    <TripContext.Provider value={value}>
+      {children}
+    </TripContext.Provider>
+  );
 }
 
 export function useTrip() {

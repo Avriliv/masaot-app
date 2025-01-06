@@ -12,17 +12,17 @@ import {
 } from '@mui/material';
 import { useTrip } from '../../context/TripContext';
 import TripDetails from './components/TripDetails';
-import MapComponent from './components/map/MapComponent';
+import MapPlanning from '../planning/MapPlanning';
 
 const steps = [
   'פרטי הטיול',
-  'תכנון מסלול',
+  'הצגת מסלול',
   'סיכום'
 ];
 
 export default function TripPlannerMain() {
   const [activeStep, setActiveStep] = useState(0);
-  const { tripState, updateStatus } = useTrip();
+  const { tripState, updateStatus, updateTrip } = useTrip();
 
   const handleNext = () => {
     if (activeStep === steps.length - 1) {
@@ -33,6 +33,16 @@ export default function TripPlannerMain() {
   };
 
   const handleBack = () => {
+    // אם חוזרים משלב המפה, נאפס את המסלול
+    if (activeStep === 1) {
+      updateTrip({
+        route: {
+          startPoint: null,
+          endPoint: null,
+          checkpoints: []
+        }
+      });
+    }
     setActiveStep((prevStep) => prevStep - 1);
   };
 
@@ -41,7 +51,7 @@ export default function TripPlannerMain() {
       case 0:
         return <TripDetails onNext={handleNext} />;
       case 1:
-        return <MapComponent onNext={handleNext} />;
+        return <MapPlanning onSubmit={handleNext} onBack={handleBack} />;
       case 2:
         return <div>סיכום - בקרוב</div>;
       default:

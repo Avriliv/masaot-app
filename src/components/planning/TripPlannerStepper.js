@@ -1,112 +1,96 @@
 import React, { useState } from 'react';
-import { Box, Paper, Stepper, Step, StepLabel, Button, Typography } from '@mui/material';
-import { styled } from '@mui/material/styles';
-import NavigateNextIcon from '@mui/icons-material/NavigateNext';
-import NavigateBeforeIcon from '@mui/icons-material/NavigateBefore';
+import { Box, Stepper, Step, StepLabel, Button, Container } from '@mui/material';
+import BasicInfo from './BasicInfo';
+import RouteDetails from './RouteDetails';
+import Summary from './Summary';
 
 const steps = [
-  'פרטי הטיול',
-  'תכנון מסלול',
-  'סיכום'
+    'פרטים בסיסיים',
+    'תכנון מסלולי',
+    'סיכום'
 ];
 
-const StepperContainer = styled(Paper)(({ theme }) => ({
-  padding: theme.spacing(3),
-  margin: theme.spacing(2),
-  direction: 'rtl',
-  '& .MuiStepper-root': {
-    direction: 'rtl'
-  },
-  '& .MuiStepConnector-line': {
-    borderColor: theme.palette.divider
-  },
-  '& .MuiStepLabel-root': {
-    flexDirection: 'row-reverse'
-  },
-  '& .MuiStepLabel-labelContainer': {
-    textAlign: 'right'
-  }
-}));
+const TripPlannerStepper = () => {
+    const [activeStep, setActiveStep] = useState(0);
+    const navigate = useNavigate();
+    const { tripState, updateBasicDetails, updateRoute } = useTrip();
 
-const ContentContainer = styled(Box)(({ theme }) => ({
-  minHeight: '400px',
-  padding: theme.spacing(2),
-  marginTop: theme.spacing(3),
-  marginBottom: theme.spacing(3),
-  direction: 'rtl'
-}));
+    const handleNext = () => {
+        setActiveStep((prevActiveStep) => prevActiveStep + 1);
+    };
 
-const NavigationContainer = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  justifyContent: 'flex-start',
-  gap: theme.spacing(2),
-  marginTop: theme.spacing(2),
-  direction: 'rtl'
-}));
+    const handleBack = () => {
+        setActiveStep((prevActiveStep) => prevActiveStep - 1);
+    };
 
-const TripPlannerStepper = ({ children }) => {
-  const [activeStep, setActiveStep] = useState(0);
+    const handleFinish = () => {
+        navigate('/my-trips');
+    };
 
-  const handleNext = () => {
-    setActiveStep((prevStep) => prevStep + 1);
-  };
+    const getStepContent = (step) => {
+        switch (step) {
+            case 0:
+                return <BasicInfo 
+                    onSubmit={handleNext}
+                    basicDetails={tripState.basicDetails}
+                    onUpdateBasicDetails={updateBasicDetails}
+                />;
+            case 1:
+                return <RouteDetails 
+                    onSubmit={handleNext}
+                    route={tripState.route}
+                    onUpdateRoute={updateRoute}
+                />;
+            case 2:
+                return <Summary 
+                    onFinish={handleFinish}
+                />;
+            default:
+                return 'Unknown step';
+        }
+    };
 
-  const handleBack = () => {
-    setActiveStep((prevStep) => prevStep - 1);
-  };
-
-  const renderStepContent = (step) => {
-    switch (step) {
-      case 0:
-        return <BasicInfo />;
-      case 1:
-        return <MapPlanning />;
-      case 2:
-        return <Summary />;
-      default:
-        return null;
-    }
-  };
-
-  return (
-    <StepperContainer>
-      <Stepper activeStep={activeStep}>
-        {steps.map((label) => (
-          <Step key={label}>
-            <StepLabel>
-              <Typography variant="body1" style={{ textAlign: 'right' }}>
-                {label}
-              </Typography>
-            </StepLabel>
-          </Step>
-        ))}
-      </Stepper>
-      
-      <ContentContainer>
-        {renderStepContent(activeStep)}
-      </ContentContainer>
-
-      <NavigationContainer>
-        <Button
-          variant="contained"
-          onClick={handleNext}
-          disabled={activeStep === steps.length - 1}
-          endIcon={<NavigateNextIcon />}
-          sx={{ marginLeft: 1 }}
-        >
-          המשך
-        </Button>
-        <Button
-          variant="outlined"
-          onClick={handleBack}
-          disabled={activeStep === 0}
-          startIcon={<NavigateBeforeIcon />}
-        >
-          חזור
-        </Button>
-      </NavigationContainer>
-    </StepperContainer>
-  );
+    return (
+        <Container>
+            <Box sx={{ width: '100%', mt: 3 }}>
+                <Stepper activeStep={activeStep} alternativeLabel>
+                    {steps.map((label) => (
+                        <Step key={label}>
+                            <StepLabel>{label}</StepLabel>
+                        </Step>
+                    ))}
+                </Stepper>
+                <Box sx={{ mt: 4 }}>
+                    {getStepContent(activeStep)}
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4 }}>
+                        <Button
+                            variant="contained"
+                            disabled={activeStep === 0}
+                            onClick={handleBack}
+                        >
+                            חזור
+                        </Button>
+                        {activeStep !== steps.length - 1 && (
+                            <Button
+                                variant="contained"
+                                onClick={handleNext}
+                            >
+                                הבא
+                            </Button>
+                        )}
+                        {activeStep === steps.length - 1 && (
+                            <Button
+                                variant="contained"
+                                onClick={handleFinish}
+                            >
+                                סיום
+                            </Button>
+                        )}
+                    </Box>
+                </Box>
+            </Box>
+        </Container>
+    );
 };
 
 export default TripPlannerStepper;
